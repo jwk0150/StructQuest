@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: ./struct-quest-backend
+      dockerfile: Dockerfile
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - MANIM_ENABLED=true
+      - MANIM_OUTPUT_DIR=/app/data/videos
+    volumes:
+      - manim_videos:/app/data/videos
+      - pptx_files:/app/static/pptx
+      - video_static:/app/static/videos
+      - sqlite_data:/app/data
+    # 渲染视频需要更多资源
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+
+  frontend:
+    build: ./struct-quest-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+# 数据持久化卷
+volumes:
+  redis_data:
+    driver: local
+  sqlite_data:
+    driver: local
+  manim_videos:
+    driver: local
+  pptx_files:
+    driver: local
+  video_static:
+    driver: local

@@ -1,0 +1,136 @@
+// 知识图谱数据 —— Map & Dashboard 共享
+export const stages = [
+  // ════════════════════════════════════════════
+  // 第1章：绪论
+  // ════════════════════════════════════════════
+  {
+    id: 'ch01_intro', num: '01', title: '绪论', status: 'locked',
+    icon: '<rect x="6" y="3" width="16" height="22" rx="2" stroke="currentColor" stroke-width="1.8" fill="none"/><line x1="9" y1="9" x2="19" y2="9" stroke="currentColor" stroke-width="1.5"/><line x1="9" y1="14" x2="19" y2="14" stroke="currentColor" stroke-width="1.5"/><line x1="9" y1="19" x2="15" y2="19" stroke="currentColor" stroke-width="1.5"/>',
+    x: 180, y: 200,
+    description: '数据结构入门，理解数据、数据元素、数据结构三要素，以及算法分析的基本方法。',
+    nodes: [
+      { id: 'ch01_data_concept',  name: '数据结构基本概念',  status: 'locked', desc: '数据·数据元素·数据结构三要素',         progress: 0, fullDesc: '数据是信息的载体，数据元素是数据的基本单位。数据结构研究逻辑结构、存储结构和对数据的运算。', points: ['数据', '数据元素', '数据对象', '数据结构三要素'], aiSuggestion: '先理解"数据元素"和"数据项"的区别，再掌握逻辑结构与存储结构的映射关系。' },
+      { id: 'ch01_data_type',     name: '数据类型',         status: 'locked', desc: '原子类型·结构类型·类型定义',         progress: 0, fullDesc: '数据类型是一组值及定义在该组值上的一组操作的总称。C语言提供基本类型和构造类型。', points: ['原子类型', '结构类型', 'C语言基本类型', '类型定义'], aiSuggestion: '重点理解 typedef 如何创建别名以及它与结构体配合使用的场景。' },
+      { id: 'ch01_adt',           name: '抽象数据类型',     status: 'locked', desc: 'ADT·数据封装·操作定义',             progress: 0, fullDesc: '抽象数据类型(ADT)通过定义数据和操作来封装实现细节，是面向对象思想的基础。', points: ['ADT', '数据封装', '操作定义', '信息隐蔽'], aiSuggestion: 'ADT的核心是"做什么"而不是"怎么做"，建议对比int和栈的ADT定义来理解。' },
+      { id: 'ch01_algorithm',     name: '算法与算法分析',   status: 'locked', desc: '算法特性·时间/空间复杂度',           progress: 0, fullDesc: '算法是解决问题步骤的有限序列。时间复杂度衡量运行时间，空间复杂度衡量内存占用。', points: ['算法特性', '时间复杂度', '空间复杂度', '大O表示法'], aiSuggestion: '掌握大O表示法的渐进含义，学会分析循环嵌套的复杂度。' },
+    ]
+  },
+  // ════════════════════════════════════════════
+  // 第2章：线性表
+  // ════════════════════════════════════════════
+  {
+    id: 'ch02_linear_list', num: '02', title: '线性表', status: 'locked',
+    icon: '<rect x="4" y="4" width="20" height="20" rx="2" stroke="currentColor" stroke-width="1.8" fill="none"/><line x1="8" y1="10" x2="20" y2="10" stroke="currentColor" stroke-width="1.5"/><line x1="8" y1="15" x2="16" y2="15" stroke="currentColor" stroke-width="1.5"/><polyline points="4,8 2,8 2,20 4,20" stroke="currentColor" stroke-width="1.2" fill="none"/>',
+    x: 440, y: 200,
+    description: '线性结构的基础，掌握顺序表和链表的存储与操作，理解不同存储方式的优劣。',
+    nodes: [
+      { id: 'ch02_seq_list',      name: '顺序表',           status: 'locked', desc: '顺序存储·随机访问·动态扩容',         progress: 0, fullDesc: '用连续内存空间存储线性表，支持 O(1) 随机访问。插入删除需要移动元素。', points: ['顺序存储', '随机访问', '插入删除', '动态扩容'], aiSuggestion: '顺序表插入操作的时间复杂度分析是重点，理解均摊思想。' },
+      { id: 'ch02_linked_list',   name: '链表',             status: 'locked', desc: '链式存储·头插尾插·指针操作',         progress: 0, fullDesc: '通过指针串联零散内存块，插入删除 O(1) 但不支持随机访问。', points: ['链式存储', '头插法', '尾插法', '指针操作'], aiSuggestion: '画图是理解链表的最好方式，建议用"删除倒数第N个节点"巩固指针操作。' },
+      { id: 'ch02_doubly_list',   name: '双向链表',         status: 'locked', desc: '前驱指针·后继指针·双向遍历',         progress: 0, fullDesc: '每个节点同时持有前驱和后继指针，支持双向遍历，删除操作更高效。', points: ['前驱指针', '后继指针', '双向遍历', '删除效率'], aiSuggestion: '学完单链表后自然过渡，建议结合LRU缓存场景理解双向链表的优势。' },
+      { id: 'ch02_circular_list', name: '循环链表',         status: 'locked', desc: '循环结构·尾指针·约瑟夫问题',         progress: 0, fullDesc: '尾节点的next指向头节点形成环，适合轮询调度等场景。', points: ['循环结构', '尾指针', '约瑟夫问题', '环形缓冲区'], aiSuggestion: '约瑟夫问题是循环链表的经典应用，可以亲手实现一遍。' },
+      { id: 'ch02_static_list',   name: '静态链表',         status: 'locked', desc: '数组模拟·游标实现·静态分配',         progress: 0, fullDesc: '用数组模拟链表，通过游标（数组下标）代替指针，适用于不支持指针的高级语言。', points: ['数组模拟', '游标实现', '备用链表', '静态分配'], aiSuggestion: '理解静态链表的"备用链表"概念，它类似于内存管理中的空闲链表。' },
+    ]
+  },
+  // ════════════════════════════════════════════
+  // 第3章：栈和队列
+  // ════════════════════════════════════════════
+  {
+    id: 'ch03_stack_queue', num: '03', title: '栈和队列', status: 'locked',
+    icon: '<rect x="4" y="4" width="20" height="20" rx="2" stroke="currentColor" stroke-width="1.8" fill="none"/><line x1="8" y1="10" x2="20" y2="10" stroke="currentColor" stroke-width="1.5"/><line x1="8" y1="15" x2="16" y2="15" stroke="currentColor" stroke-width="1.5"/><polyline points="4,8 2,8 2,20 4,20" stroke="currentColor" stroke-width="1.2" fill="none"/>',
+    x: 700, y: 200,
+    description: '在线性表基础上施加操作限制，衍生出栈(LIFO)和队列(FIFO)两种核心结构。',
+    nodes: [
+      { id: 'ch03_stack_basic',   name: '栈的基本概念',     status: 'locked', desc: '栈顶栈底·LIFO·入栈出栈',             progress: 0, fullDesc: '后进先出的受限线性表，仅在栈顶操作。广泛应用于函数调用、括号匹配。', points: ['栈顶栈底', 'LIFO', '入栈出栈', '函数调用栈'], aiSuggestion: '栈在DFS、回溯等算法中扮演关键角色，建议与递归对比学习。' },
+      { id: 'ch03_seq_stack',     name: '顺序栈',           status: 'locked', desc: '顺序存储·栈顶指针·共享栈',             progress: 0, fullDesc: '用数组实现栈，top指针指向栈顶。两个栈可共享同一数组空间。', points: ['顺序存储', '栈顶指针', '栈满判断', '共享栈'], aiSuggestion: '共享栈能节省空间，理解两个栈"相向生长"的设计思想。' },
+      { id: 'ch03_chain_stack',   name: '链栈',             status: 'locked', desc: '链式存储·头插法·无栈满限制',           progress: 0, fullDesc: '用链表实现栈，头插法入栈相当于push，头删法出栈相当于pop。', points: ['链式存储', '头插法', '无栈满限制', '节点回收'], aiSuggestion: '链栈相比顺序栈的优势是不会栈满，适合数据量不确定的场景。' },
+      { id: 'ch03_queue_basic',   name: '队列',             status: 'locked', desc: '队头队尾·FIFO·入队出队',             progress: 0, fullDesc: '先进先出的受限线性表。队尾入队，队头出队。适用于BFS、任务调度。', points: ['队头队尾', 'FIFO', '入队出队', 'BFS辅助'], aiSuggestion: '队列是BFS的核心数据结构，建议结合二叉树层序遍历一起练习。' },
+      { id: 'ch03_circular_queue', name: '循环队列',        status: 'locked', desc: '取模运算·假溢出·队空队满判断',         progress: 0, fullDesc: '用数组模拟循环结构，通过取模运算复用已出队空间，解决假溢出问题。', points: ['取模运算', '假溢出', '队空队满判断', '循环复用'], aiSuggestion: '区分"牺牲一个单元"和"增设size变量"两种队空队满判断方式。' },
+      { id: 'ch03_chain_queue',   name: '链队列',           status: 'locked', desc: '头尾指针·链式存储·动态扩展',           progress: 0, fullDesc: '用链表实现队列，设置头尾两个指针分别指向队头和队尾。', points: ['头尾指针', '链式存储', '动态扩展', '入队出队操作'], aiSuggestion: '链队列的入队出队操作只需修改指针，不需要移动数据。' },
+    ]
+  },
+  // ════════════════════════════════════════════
+  // 第4章：串、数组和广义表
+  // ════════════════════════════════════════════
+  {
+    id: 'ch04_string_array', num: '04', title: '串数组广义表', status: 'locked',
+    icon: '<rect x="4" y="6" width="20" height="16" rx="2" stroke="currentColor" stroke-width="1.8" fill="none"/><line x1="7" y1="11" x2="21" y2="11" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="16" x2="17" y2="16" stroke="currentColor" stroke-width="1.3"/>',
+    x: 960, y: 200,
+    description: '字符串模式匹配、多维数组存储、稀疏矩阵压缩以及广义表的递归定义。',
+    nodes: [
+      { id: 'ch04_string',        name: '串',               status: 'locked', desc: '字符串·定长顺序·堆分配存储',         progress: 0, fullDesc: '串是由零个或多个字符组成的有限序列。有定长顺序存储和堆分配存储两种方式。', points: ['字符串', '定长顺序存储', '堆分配存储', '串操作'], aiSuggestion: '重点理解C语言中字符串以"\\0"结尾的特性及其安全隐患。' },
+      { id: 'ch04_pattern_match', name: '模式匹配',         status: 'locked', desc: '朴素匹配·KMP算法·next数组',           progress: 0, fullDesc: '模式匹配是在主串中查找子串首次出现的位置。KMP通过next数组避免回溯，O(n+m)。', points: ['朴素模式匹配', 'KMP算法', 'next数组', '时间复杂度O(n+m)'], aiSuggestion: 'KMP的next数组推导是难点，建议用"前缀相同跳过"来理解核心思想。' },
+      { id: 'ch04_array',         name: '数组',             status: 'locked', desc: '多维数组·行优先·列优先',             progress: 0, fullDesc: '数组是由相同类型数据元素构成的集合。多维数组按行优先或列优先存储。', points: ['多维数组', '行优先', '列优先', '地址计算'], aiSuggestion: '掌握三维数组中 a[i][j][k] 的地址计算公式推导。' },
+      { id: 'ch04_sparse_matrix', name: '稀疏矩阵',         status: 'locked', desc: '三元组·十字链表·压缩存储',           progress: 0, fullDesc: '非零元素远少于零元素的矩阵。用三元组或十字链表压缩存储以节省空间。', points: ['三元组', '十字链表', '压缩存储', '转置运算'], aiSuggestion: '十字链表适合矩阵运算中非零元素位置频繁变化的场景。' },
+      { id: 'ch04_generalized_list', name: '广义表',        status: 'locked', desc: '表头表尾·深度·递归定义',             progress: 0, fullDesc: '广义表是线性表的推广，元素可以是单个元素或另一个广义表，具有递归结构。', points: ['表头表尾', '深度', '递归定义', '共享存储'], aiSuggestion: '广义表的深度计算是递归思想的良好训练。' },
+    ]
+  },
+  // ════════════════════════════════════════════
+  // 第5章：树和二叉树
+  // ════════════════════════════════════════════
+  {
+    id: 'ch05_tree', num: '05', title: '树和二叉树', status: 'locked',
+    icon: '<circle cx="14" cy="6" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="14" y1="9" x2="8" y2="17" stroke="currentColor" stroke-width="1.5"/><line x1="14" y1="9" x2="20" y2="17" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="19" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="20" cy="19" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/>',
+    x: 180, y: 550,
+    description: '从线性到非线性的跨越，树是层次化数据的核心结构，二叉树遍历是基础。',
+    nodes: [
+      { id: 'ch05_tree_basic',    name: '树',               status: 'locked', desc: '树形结构·节点度·树的深度',             progress: 0, fullDesc: '树是由n个节点组成的层次结构。除根节点外每个节点有且仅有一个父节点。', points: ['树形结构', '节点度', '树的深度', '森林转换'], aiSuggestion: '掌握树、森林与二叉树的相互转换规则，这是考试常见题型。' },
+      { id: 'ch05_binary_tree',   name: '二叉树',           status: 'locked', desc: '左右子树·满二叉树·完全二叉树',         progress: 0, fullDesc: '每个节点最多两个子节点。满二叉树和完全二叉树有特殊的性质。', points: ['左右子树', '满二叉树', '完全二叉树', '性质推导'], aiSuggestion: '熟记二叉树第i层最多2^(i-1)个节点、深度h最多2^h-1个节点等性质。' },
+      { id: 'ch05_tree_traversal', name: '二叉树遍历',      status: 'locked', desc: '前中后序遍历·层序遍历',               progress: 0, fullDesc: '四种遍历方式：前序(根左右)、中序(左根右)、后序(左右根)、层序(逐层)。', points: ['前序遍历', '中序遍历', '后序遍历', '层序遍历'], aiSuggestion: '由两种遍历序列唯一确定二叉树是高频考点，建议多练习。' },
+      { id: 'ch05_threaded_tree', name: '线索二叉树',       status: 'locked', desc: '前驱后继线索·线索化·遍历优化',         progress: 0, fullDesc: '利用空指针域存放前驱后继线索，实现无需栈和递归的遍历。', points: ['前驱后继线索', '线索化', '中序线索树', '遍历优化'], aiSuggestion: '理解线索二叉树的"线索"本质上是将空指针重新利用。' },
+      { id: 'ch05_huffman',       name: '哈夫曼树',         status: 'locked', desc: '最优二叉树·带权路径长度·哈夫曼编码',   progress: 0, fullDesc: '带权路径长度WPL最小的二叉树。用于数据压缩中的哈夫曼编码。', points: ['最优二叉树', '带权路径长度', '哈夫曼编码', '前缀编码'], aiSuggestion: '哈夫曼编码保证是前缀编码（无二义性），理解"前缀"的含义。' },
+    ]
+  },
+  // ════════════════════════════════════════════
+  // 第6章：图
+  // ════════════════════════════════════════════
+  {
+    id: 'ch06_graph', num: '06', title: '图', status: 'locked',
+    icon: '<circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="20" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="14" cy="20" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><line x1="10.5" y1="9.5" x2="17.5" y2="9.5" stroke="currentColor" stroke-width="1.5"/><line x1="9.5" y1="10.5" x2="12.5" y2="17.5" stroke="currentColor" stroke-width="1.2"/><line x1="18.5" y1="10.5" x2="15.5" y2="17.5" stroke="currentColor" stroke-width="1.2"/>',
+    x: 440, y: 550,
+    description: '最通用的非线性结构，描述万物之间的复杂关系，掌握图搜索与图算法。',
+    nodes: [
+      { id: 'ch06_graph_concept', name: '图的基本概念',     status: 'locked', desc: '顶点边·有向无向·连通分量',             progress: 0, fullDesc: '由顶点集合和边集合组成的结构。分为有向图和无向图，连通分量是重要概念。', points: ['顶点边', '有向无向', '完全图', '连通分量'], aiSuggestion: '理解连通图、强连通图、连通分量、强连通分量的区别。' },
+      { id: 'ch06_graph_storage', name: '图的存储结构',     status: 'locked', desc: '邻接矩阵·邻接表·空间复杂度',           progress: 0, fullDesc: '邻接矩阵用二维数组存储，适合稠密图。邻接表用链表存储，适合稀疏图。', points: ['邻接矩阵', '邻接表', '逆邻接表', '空间复杂度'], aiSuggestion: '理解邻接矩阵和邻接表的空间复杂度差异，以及它们分别适合什么场景。' },
+      { id: 'ch06_dfs',           name: '深度优先搜索',     status: 'locked', desc: 'DFS·递归栈·访问标记·连通性',           progress: 0, fullDesc: '从一个顶点出发，沿着一条路径走到底再回溯。用栈或递归实现。', points: ['DFS', '递归栈', '访问标记', '连通性判断'], aiSuggestion: 'DFS是图算法的基础，掌握递归和显式栈两种实现方式。' },
+      { id: 'ch06_bfs',           name: '广度优先搜索',     status: 'locked', desc: 'BFS·队列实现·逐层遍历',               progress: 0, fullDesc: '从一个顶点出发，逐层访问所有邻接顶点。用队列实现，可求最短路径。', points: ['BFS', '队列实现', '逐层遍历', '最短路径'], aiSuggestion: 'BFS常用于求解无权图中的最短路径问题。' },
+      { id: 'ch06_mst',           name: '最小生成树',       status: 'locked', desc: 'Prim·Kruskal·贪心策略·并查集',         progress: 0, fullDesc: '在连通带权图中找出连接所有顶点的最小权值边集。', points: ['Prim算法', 'Kruskal算法', '贪心策略', '并查集'], aiSuggestion: 'Kruskal需要并查集支持，建议先学Prim再扩展到Kruskal。' },
+      { id: 'ch06_shortest_path', name: '最短路径',         status: 'locked', desc: 'Dijkstra·Floyd·松弛操作',              progress: 0, fullDesc: '单源最短路径用Dijkstra（非负权），多源用Floyd。', points: ['Dijkstra', 'Floyd', '松弛操作', '负权边限制'], aiSuggestion: 'Dijkstra是面试高频题，理解"松弛操作"的概念是关键。' },
+      { id: 'ch06_topo_sort',     name: '拓扑排序',         status: 'locked', desc: 'AOV网·入度表·BFS实现·环检测',         progress: 0, fullDesc: '对有向无环图(DAG)的顶点进行线性排序。常用BFS（Kahn算法）实现。', points: ['AOV网', '入度表', 'BFS实现', '环检测'], aiSuggestion: '拓扑排序可用于检测有向图中是否存在环。' },
+    ]
+  },
+  // ════════════════════════════════════════════
+  // 第7章：查找
+  // ════════════════════════════════════════════
+  {
+    id: 'ch07_search', num: '07', title: '查找', status: 'locked',
+    icon: '<circle cx="8" cy="10" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M11 14L18 21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="16" cy="18" r="1" fill="currentColor"/><line x1="13" y1="6" x2="18" y2="6" stroke="currentColor" stroke-width="1.5"/><line x1="14" y1="10" x2="19" y2="10" stroke="currentColor" stroke-width="1.3"/><line x1="13" y1="14" x2="17" y2="14" stroke="currentColor" stroke-width="1"/>',
+    x: 700, y: 550,
+    description: '从顺序查找到哈希查找，掌握不同查找算法的效率与应用场景。',
+    nodes: [
+      { id: 'ch07_seq_search',    name: '顺序查找',         status: 'locked', desc: '线性查找·哨兵优化·ASL分析',           progress: 0, fullDesc: '从头到尾逐个比较。设置哨兵可以减少比较次数。', points: ['线性查找', '哨兵优化', 'ASL分析', '无序查找'], aiSuggestion: '哨兵优化虽然简单，但体现了"用空间换时间"的思想。' },
+      { id: 'ch07_binary_search', name: '折半查找',         status: 'locked', desc: '有序表·二分思想·判定树·O(log n)',      progress: 0, fullDesc: '在有序表中每次取中间元素比较，将查找范围缩小一半。O(log n)。', points: ['有序表', '二分思想', '判定树', 'O(log n)'], aiSuggestion: '折半查找的判定树是一棵平衡二叉搜索树，理解ASL的计算方法。' },
+      { id: 'ch07_block_search',  name: '分块查找',         status: 'locked', desc: '索引表·块内无序·块间有序·ASL',         progress: 0, fullDesc: '将数据分为若干块，块间有序块内无序。查找分两步：先查索引表确定块，再在块内顺序查找。', points: ['索引表', '块内无序', '块间有序', '平均查找长度'], aiSuggestion: '分块查找结合了顺序查找和折半查找的思想，适合动态变化的数据。' },
+      { id: 'ch07_bst_search',    name: '二叉排序树',       status: 'locked', desc: '左小右大·中序有序·查找插入删除',       progress: 0, fullDesc: '左子树所有节点<根节点<右子树所有节点。中序遍历得到递增有序序列。', points: ['左小右大', '中序有序', '查找插入删除', '平衡问题'], aiSuggestion: 'BST退化为链表的场景需要理解，为AVL树和红黑树做铺垫。' },
+      { id: 'ch07_hash_search',   name: '哈希查找',         status: 'locked', desc: '哈希函数·冲突解决·拉链法·装填因子',   progress: 0, fullDesc: '通过哈希函数将关键字映射到存储位置。拉链法和开放定址法解决冲突。', points: ['哈希函数', '冲突解决', '拉链法', '装填因子'], aiSuggestion: '装填因子α直接影响查找效率，理解α=0.5和α=0.8的区别。' },
+    ]
+  },
+  // ════════════════════════════════════════════
+  // 第8章：排序
+  // ════════════════════════════════════════════
+  {
+    id: 'ch08_sort', num: '08', title: '排序', status: 'locked',
+    icon: '<rect x="4" y="6" width="5" height="4" rx="1" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="11" y="10" width="5" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="18" y="4" width="5" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.8"/>',
+    x: 960, y: 550,
+    description: '掌握各类排序算法的原理、时间/空间复杂度、稳定性和适用场景。',
+    nodes: [
+      { id: 'ch08_insert_sort',   name: '插入排序',         status: 'locked', desc: '直接插入·折半插入·稳定排序',           progress: 0, fullDesc: '将未排序元素插入到已排序序列的正确位置。折半插入用二分查找优化比较次数。', points: ['直接插入', '折半插入', '稳定排序', 'O(n²)'], aiSuggestion: '插入排序在基本有序的数组上效率很高，最佳情况O(n)。' },
+      { id: 'ch08_shell_sort',    name: '希尔排序',         status: 'locked', desc: '增量序列·分组插入·不稳定',             progress: 0, fullDesc: '将相隔某个增量的元素组成子表进行插入排序，逐步缩小增量。', points: ['增量序列', '分组插入', '不稳定', 'O(n^1.3)'], aiSuggestion: '希尔排序的时间复杂度依赖于增量序列的选择，理解"分组跳跃"的思想。' },
+      { id: 'ch08_bubble_sort',   name: '冒泡排序',         status: 'locked', desc: '相邻交换·优化标记·稳定排序',           progress: 0, fullDesc: '两两比较相邻元素，顺序不对则交换。每轮将最大元素"浮"到最后。', points: ['相邻交换', '优化标记', '稳定排序', '最佳O(n)'], aiSuggestion: '设置交换标记优化后，冒泡排序在有序数组上只需O(n)。' },
+      { id: 'ch08_quick_sort',    name: '快速排序',         status: 'locked', desc: '分治交换·基准选择·最坏O(n²)',          progress: 0, fullDesc: '选取基准将数组分为小于和大于两部分，递归排序。平均O(n log n)。', points: ['分治交换', '基准选择', '最坏O(n²)', '不稳定'], aiSuggestion: '快排是工业界默认排序算法，掌握"三数取中"优化基准选择。' },
+      { id: 'ch08_selection_sort', name: '简单选择排序',    status: 'locked', desc: '最小值选择·不稳定·交换次数少',         progress: 0, fullDesc: '每轮从未排序部分选出最小值放到已排序部分的末尾。', points: ['最小值选择', '不稳定', 'O(n²)', '交换次数少'], aiSuggestion: '简单选择排序的交换次数是O(n)，比冒泡少，但比较次数相同。' },
+      { id: 'ch08_heap_sort',     name: '堆排序',           status: 'locked', desc: '大顶堆·建堆O(n)·筛选调整·不稳定',     progress: 0, fullDesc: '利用堆这种数据结构进行排序。建堆O(n)，每次调整O(log n)。', points: ['大顶堆', '建堆O(n)', '筛选调整', '不稳定'], aiSuggestion: '理解"建堆"和"堆调整"的区别，建堆是从最后一个非叶子节点开始向下调整。' },
+      { id: 'ch08_merge_sort',    name: '归并排序',         status: 'locked', desc: '分治合并·稳定排序·O(n)空间',           progress: 0, fullDesc: '将序列不断二分直到单元素，再两两合并为有序序列。稳定排序，需额外O(n)空间。', points: ['分治合并', '稳定排序', 'O(n)空间', '外部排序'], aiSuggestion: '归并排序是外部排序的基础，理解"多路归并"的概念。' },
+      { id: 'ch08_radix_sort',    name: '基数排序',         status: 'locked', desc: '多关键字·LSD·MSD·稳定排序',           progress: 0, fullDesc: '按位数从低位到高位（LSD）或高位到低位（MSD）依次分配收集。', points: ['多关键字', 'LSD', 'MSD', '稳定排序'], aiSuggestion: '基数排序的时间复杂度是O(d(n+r))，与数据范围有关而不是数据本身。' },
+    ]
+  },
+]

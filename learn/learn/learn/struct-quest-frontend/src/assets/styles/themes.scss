@@ -1,0 +1,137 @@
+﻿/* ============================================
+   StructQuest Theme Definitions
+   ============================================ */
+
+@use './variables.scss';
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: var(--font-regular);
+  line-height: var(--leading-normal);
+  letter-spacing: 0;
+  color: var(--text-main);
+  background: var(--bg-page);
+  transition: background-color var(--transition-slow), color var(--transition-slow);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(var(--color-primary-rgb), 0.18);
+  color: var(--color-primary-dark);
+}
+
+:focus-visible {
+  outline: 2px solid rgba(var(--color-primary-rgb), 0.65);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: var(--font-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: 0;
+  color: var(--text-main);
+}
+
+h1 { font-size: var(--text-3xl); }
+h2 { font-size: var(--text-2xl); }
+h3 { font-size: var(--text-xl); }
+h4 { font-size: var(--text-lg); }
+
+p {
+  line-height: var(--leading-relaxed);
+  color: var(--text-secondary);
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-primary-dark);
+}
+
+:root {
+  --el-color-primary: var(--color-primary);
+  --el-color-primary-light-3: var(--color-primary-light);
+  --el-color-primary-dark-2: var(--color-primary-dark);
+  --el-color-success: var(--color-success);
+  --el-color-warning: var(--color-warning);
+  --el-color-danger: var(--color-danger);
+  --el-color-info: var(--color-info);
+
+  --el-border-radius-base: var(--radius-sm);
+  --el-border-radius-small: var(--radius-xs);
+  --el-border-radius-round: var(--radius-round);
+
+  --el-font-family: var(--font-body);
+  --el-font-size-base: var(--text-sm);
+  --el-text-color-primary: var(--text-main);
+  --el-text-color-regular: var(--text-secondary);
+  --el-text-color-secondary: var(--text-tertiary);
+
+  --el-bg-color: var(--bg-color);
+  --el-bg-color-page: var(--bg-page);
+  --el-bg-color-overlay: var(--bg-color);
+  --el-border-color: var(--border-color);
+  --el-border-color-light: var(--border-light);
+  --el-fill-color: var(--bg-secondary);
+  --el-fill-color-light: var(--bg-tertiary);
+  --el-fill-color-blank: var(--bg-color);
+
+  --el-box-shadow: var(--shadow-sm);
+  --el-box-shadow-light: var(--shadow-md);
+  --el-box-shadow-lighter: var(--shadow-sm);
+  --el-box-shadow-dark: var(--shadow-lg);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --el-bg-color: var(--bg-color);
+  --el-bg-color-page: var(--bg-page);
+  --el-bg-color-overlay: var(--bg-secondary);
+  --el-text-color-primary: var(--text-main);
+  --el-text-color-regular: var(--text-secondary);
+  --el-text-color-secondary: var(--text-tertiary);
+  --el-border-color: var(--border-color);
+  --el-border-color-light: var(--border-light);
+  --el-fill-color: var(--bg-secondary);
+  --el-fill-color-light: var(--bg-tertiary);
+  --el-fill-color-blank: var(--bg-color);
+}
+
+[data-theme='dark'] .el-table {
+  --el-table-bg-color: var(--bg-secondary);
+  --el-table-tr-bg-color: var(--bg-secondary);
+  --el-table-header-bg-color: var(--bg-tertiary);
+  --el-table-row-hover-bg-color: rgba(37, 99, 235, 0.12);
+  --el-table-border-color: var(--border-color);
+  --el-table-text-color: var(--text-main);
+  --el-table-header-text-color: var(--text-secondary);
+}

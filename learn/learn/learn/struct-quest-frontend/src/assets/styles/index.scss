@@ -1,0 +1,317 @@
+﻿/* ============================================
+   StructQuest Global Styles
+   ============================================ */
+
+@use './themes.scss';
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.75);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.55) transparent;
+}
+
+#app {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% -10%, rgba(37, 99, 235, 0.10), transparent 30%),
+    radial-gradient(circle at 88% 0%, rgba(20, 184, 166, 0.10), transparent 28%),
+    var(--bg-page);
+}
+
+.el-button {
+  font-family: var(--font-body);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0;
+  border-radius: var(--radius-sm) !important;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast) !important;
+  box-shadow: none !important;
+}
+
+.el-button--primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+}
+
+.el-button--primary:hover,
+.el-button--primary:focus {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow) !important;
+}
+
+.el-button:not(.el-button--primary):not(.el-button--text):not(.is-text) {
+  background: var(--bg-color) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-main) !important;
+}
+
+.el-button:not(.el-button--primary):not(.el-button--text):not(.is-text):hover {
+  border-color: var(--border-strong) !important;
+  background: var(--bg-secondary) !important;
+}
+
+.el-card,
+.el-dialog,
+.el-message-box,
+.el-popover,
+.el-dropdown-menu {
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-md) !important;
+  background: var(--bg-color) !important;
+}
+
+.el-card {
+  overflow: hidden;
+}
+
+.el-card:hover {
+  box-shadow: var(--shadow-lg) !important;
+  border-color: var(--border-strong) !important;
+}
+
+.el-card__header {
+  min-height: 54px;
+  padding: 16px 20px !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  color: var(--text-main);
+  font-weight: var(--font-bold);
+}
+
+.el-card__body {
+  padding: 20px !important;
+}
+
+.el-input__wrapper,
+.el-select__wrapper {
+  min-height: 38px;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: 0 0 0 1px var(--border-color) inset !important;
+  background: var(--bg-color) !important;
+  transition: box-shadow var(--transition-fast), background var(--transition-fast) !important;
+}
+
+.el-input__wrapper:hover,
+.el-select__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--border-strong) inset !important;
+}
+
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused {
+  box-shadow: 0 0 0 1px var(--color-primary) inset, 0 0 0 4px rgba(var(--color-primary-rgb), 0.1) !important;
+}
+
+.el-input__inner,
+.el-textarea__inner {
+  color: var(--text-main) !important;
+  font-family: var(--font-body) !important;
+}
+
+.el-textarea__inner {
+  border-radius: var(--radius-sm) !important;
+  box-shadow: 0 0 0 1px var(--border-color) inset !important;
+  border: none !important;
+  background: var(--bg-color) !important;
+}
+
+.el-table {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  --el-table-header-bg-color: var(--bg-secondary);
+  --el-table-row-hover-bg-color: rgba(var(--color-primary-rgb), 0.05);
+  --el-table-border-color: var(--border-light);
+}
+
+.el-table th.el-table__cell {
+  color: var(--text-secondary);
+  font-weight: var(--font-bold);
+}
+
+.el-tag {
+  height: 24px;
+  padding: 0 10px !important;
+  border: none !important;
+  border-radius: var(--radius-round) !important;
+  font-weight: var(--font-semibold) !important;
+}
+
+.el-progress-bar__outer,
+.el-progress-bar__inner {
+  border-radius: var(--radius-round) !important;
+}
+
+.el-menu {
+  border-right: 0 !important;
+}
+
+.el-menu-item,
+.el-sub-menu__title {
+  border-radius: var(--radius-sm);
+  margin: 4px 8px;
+}
+
+.el-dropdown-menu {
+  padding: 8px !important;
+}
+
+.el-dropdown-menu__item {
+  border-radius: var(--radius-xs) !important;
+}
+
+:where(.home-page, .map-view, .analysis-container, .profile-view, .knowledge-base, .review-page, .quest-page, .resources-page, .daily-practice-page, .exam-page, .admin-page) {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 28px;
+}
+
+:where(.panel, .sb-card, .stat-card, .profile-card, .persona-card, .stats-card, .path-card, .progress-card, .analysis-card, .map-topbar, .chapter-card, .review-card, .resource-card) {
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--bg-elevated) !important;
+  box-shadow: var(--shadow-sm) !important;
+  backdrop-filter: blur(16px);
+}
+
+:where(.panel, .sb-card, .stat-card, .profile-card, .persona-card, .stats-card, .path-card, .progress-card, .analysis-card, .chapter-card, .review-card, .resource-card):hover {
+  border-color: var(--border-strong) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+:where(.panel-title, .map-title, .analysis-title, .profile-title, .section-title) {
+  letter-spacing: 0;
+}
+
+:where(.stats-row, .analysis-grid, .profile-main-grid, .main-grid) {
+  gap: 20px !important;
+}
+
+:where(.cta-btn, .refresh-btn, .add-task-btn, .map-empty-btn, .nl-gen-btn, .nl-chart-btn, .nl-res-tab) {
+  font-family: var(--font-body) !important;
+  letter-spacing: 0 !important;
+}
+
+:where(.cta-primary, .add-task-btn, .nl-gen-btn) {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)) !important;
+  box-shadow: var(--shadow-glow) !important;
+}
+
+:where(.task-bar-fill, .cp-fill, .pi-fill) {
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent-teal)) !important;
+}
+
+:where(.markdown-body) {
+  color: var(--text-main);
+}
+
+:where(.markdown-body pre) {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent-teal));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glass {
+  background: var(--bg-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.dot-pattern {
+  background-image: radial-gradient(circle, rgba(100, 116, 139, 0.18) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.accent-border-left {
+  border-left: 3px solid var(--color-primary) !important;
+}
+
+.accent-border-top {
+  border-top: 3px solid var(--color-primary) !important;
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  animation: fadeSlideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.delay-1 { animation-delay: 0.06s; }
+.delay-2 { animation-delay: 0.12s; }
+.delay-3 { animation-delay: 0.18s; }
+.delay-4 { animation-delay: 0.24s; }
+.delay-5 { animation-delay: 0.30s; }
+.delay-6 { animation-delay: 0.36s; }
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(1.25); }
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+  animation: pulseGlow 1.8s ease-in-out infinite;
+}
+
+@media (max-width: 900px) {
+  :where(.home-page, .map-view, .analysis-container, .profile-view, .knowledge-base, .review-page, .quest-page, .resources-page, .daily-practice-page, .exam-page, .admin-page) {
+    padding: 18px;
+  }
+}
+
+/* ───── Extra polish ───── */
+a, button, .el-button, .el-card, .task-row, .nav-link, .stat-card {
+  -webkit-tap-highlight-color: transparent;
+}
+
+img, svg {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.el-table {
+  --el-table-border: 1px solid var(--border-light);
+}
+
+/* Ensure all page sections have consistent visual rhythm */
+section + section,
+.panel + .panel,
+.sb-card + .sb-card {
+  margin-top: 0;
+}
+
+/* Subtle entrance for cards inside pages */
+.panel, .stat-card, .sb-card, .overview-card {
+  animation: fadeSlideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
