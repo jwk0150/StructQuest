@@ -317,7 +317,7 @@ onUnmounted(() => { if (socket.value) socket.value.close() })
 <style lang="scss" scoped>
 .chat-page-container {
   display: flex;
-  height: calc(100vh - 64px);
+  height: calc(100vh - var(--topnav-height));
   background: var(--bg-color);
   overflow: hidden;
 }
@@ -329,7 +329,13 @@ onUnmounted(() => { if (socket.value) socket.value.close() })
   display: flex; flex-direction: column;
 }
 .teacher-visual {
-  flex: 1; overflow: hidden; min-height: 0;
+  flex: 1; overflow: hidden; position: relative;
+}
+.teacher-visual :deep(.digital-teacher) {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 .teacher-ctrls {
   padding: 8px 10px;

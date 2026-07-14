@@ -108,6 +108,5 @@ export const STORAGE_KEYS = {
   REMEMBER_ME: 'remember-me',
   LAST_VISIT: 'last-visit',
   PROFILE: 'profile-data',   // 画像数据本地备份（DB 失败时的容错）
-  LEARNING_MODE: 'learning-mode',  // 学习模式
   ONBOARDING_DONE: 'onboarding-done',  // 新手引导完成标记
 }

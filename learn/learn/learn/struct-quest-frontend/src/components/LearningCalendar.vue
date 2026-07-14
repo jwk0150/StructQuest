@@ -4,7 +4,6 @@
       <div class="calendar-title-row">
         <span class="calendar-icon">📅</span>
         <h3 class="calendar-title">学习日历</h3>
-        <span class="calendar-mode-tag" :style="{ background: modeColor + '15', color: modeColor }">{{ modeLabel }}</span>
       </div>
       <div class="calendar-nav">
         <button class="nav-btn" @click="prevMonth">‹</button>
@@ -140,10 +139,6 @@ import { ref, computed, onMounted, onActivated } from 'vue'
 import { useSessionStore } from '../store/session'
 import { http } from '../utils/request'
 
-const props = defineProps({
-  mode: { type: String, default: 'beginner' },
-})
-
 const session = useSessionStore()
 const weekDays = ['一', '二', '三', '四', '五', '六', '日']
 
@@ -156,19 +151,9 @@ const currentMonth = ref(now.getMonth() + 1)
 const selectedDate = ref(null)
 const selectedCellRect = ref({ x: 0, y: 0 })
 
-// ═══ 模式颜色映射 ═══
-const modeColorMap = {
-  basic: '#22c55e',
-  beginner: '#3b82f6',
-  exam: '#f97316',
-}
-const modeLabelMap = {
-  basic: '基础模式',
-  beginner: '入门模式',
-  exam: '考试模式',
-}
-const modeColor = computed(() => modeColorMap[props.mode] || modeColorMap.beginner)
-const modeLabel = computed(() => modeLabelMap[props.mode] || modeLabelMap.beginner)
+// ═══ 主题色（统一） ═══
+const modeColor = computed(() => '#3b82f6')
+const modeLabel = computed(() => '学习记录')
 
 // ═══ 日历数据（从后端加载）═══
 const calendarRecords = ref({})

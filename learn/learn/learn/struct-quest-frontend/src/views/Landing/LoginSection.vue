@@ -251,7 +251,7 @@ async function handleGuest() {
   try {
     const res = await authApi.guest()
     sessionStore.login(res.user, res.token)
-    setTimeout(() => router.push('/app'), 500)
+    setTimeout(() => router.push('/onboarding'), 500)
   } catch {
     ElMessage.error('游客登录失败')
   } finally {

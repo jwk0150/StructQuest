@@ -24,6 +24,7 @@ LangGraph 图编排引擎（v3 — Orchestrator 星型拓扑）
 """
 
 import time
+import asyncio
 from typing import Dict, Any, List, Optional
 
 from app.agents.state import LearningState, create_initial_state, EventType
@@ -218,6 +219,181 @@ def _preload_rag_context(state: LearningState) -> LearningState:
 
 
 # ================================================================
+#                   画像持久化辅助函数
+# ================================================================
+
+def _load_existing_profile(user_id: str) -> Optional[Dict[str, Any]]:
+    """
+    从数据库加载已有画像（同步版本，在 run_in_executor 中运行）
+
+    优先级：
+    1. student_profiles 表（Agent 画像）
+    2. users.profile_data JSON 字段（降级）
+    """
+    if not user_id or user_id == "default":
+        return None
+
+    try:
+        import asyncio as aio
+        loop = aio.new_event_loop()
+        try:
+            profile = loop.run_until_complete(_async_load_profile(user_id))
+            return profile
+        finally:
+            loop.close()
+    except Exception as e:
+        logger.warning("加载已有画像失败: %s", e)
+        return None
+
+
+async def _async_load_profile(user_id: str) -> Optional[Dict[str, Any]]:
+    """异步从数据库加载已有画像"""
+    from app.db.session import AsyncSessionLocal
+    from sqlalchemy.future import select
+    from app.models.student_profile import StudentProfile
+
+    try:
+        uid = int(user_id)
+    except (ValueError, TypeError):
+        return None
+
+    async with AsyncSessionLocal() as db:
+        # 1. 先查 student_profiles 表
+        result = await db.execute(
+            select(StudentProfile).where(StudentProfile.user_id == uid)
+        )
+        record = result.scalar_one_or_none()
+        if record:
+            profile_dict = record.to_dict()
+            logger.info(
+                "📥 从 DB 加载已有画像: user=%s, level=%s, version=%d, weaknesses=%d",
+                user_id, profile_dict.get("ability_level"),
+                record.profile_version or 1,
+                len(profile_dict.get("weaknesses", [])),
+            )
+            return profile_dict
+
+        # 2. 降级：读 users.profile_data JSON 字段
+        from app.models.user import User
+        result = await db.execute(select(User).where(User.id == uid))
+        user = result.scalar_one_or_none()
+        if user and user.profile_data:
+            pd = user.profile_data
+            if isinstance(pd, dict) and pd.get("ability_level"):
+                logger.info(
+                    "📥 从 users.profile_data 加载已有画像: user=%s, level=%s",
+                    user_id, pd.get("ability_level"),
+                )
+                return dict(pd)
+
+    return None
+
+
+def _persist_profile_to_db_sync(user_id: str, profile_data: Dict[str, Any]) -> bool:
+    """
+    将画像持久化到数据库（同步版本，在 run_in_executor 中运行）
+
+    同时写入 student_profiles 表和 users.profile_data 字段。
+    """
+    if not user_id or user_id == "default":
+        return False
+    if not profile_data or not profile_data.get("ability_level"):
+        return False
+
+    try:
+        import asyncio as aio
+        loop = aio.new_event_loop()
+        try:
+            success = loop.run_until_complete(_async_persist_profile(user_id, profile_data))
+            return success
+        finally:
+            loop.close()
+    except Exception as e:
+        logger.warning("持久化画像失败: %s", e)
+        return False
+
+
+async def _async_persist_profile(user_id: str, profile_data: Dict[str, Any]) -> bool:
+    """异步持久化画像到 student_profiles 表 + users.profile_data"""
+    from app.db.session import AsyncSessionLocal
+    from sqlalchemy.future import select
+    from app.models.student_profile import StudentProfile
+    from app.models.user import User
+
+    try:
+        uid = int(user_id)
+    except (ValueError, TypeError):
+        return False
+
+    async with AsyncSessionLocal() as db:
+        # 1. 更新/创建 student_profiles 记录
+        result = await db.execute(
+            select(StudentProfile).where(StudentProfile.user_id == uid)
+        )
+        record = result.scalar_one_or_none()
+
+        cognitive = profile_data.get("cognitive", {})
+
+        if record:
+            record.ability_level = profile_data.get("ability_level", record.ability_level)
+            record.learning_style = profile_data.get("learning_style", record.learning_style)
+            record.pace = profile_data.get("pace", record.pace)
+            record.learning_rhythm = profile_data.get("learning_rhythm", record.learning_rhythm)
+            record.knowledge_mastery = profile_data.get("knowledge_mastery", record.knowledge_mastery or {})
+            record.activity_score = float(profile_data.get("activity_score", record.activity_score or 0))
+            record.focus_score = float(profile_data.get("focus_score", record.focus_score or 75))
+            record.resource_preferences = profile_data.get("resource_preferences", record.resource_preferences or {})
+            record.error_patterns = profile_data.get("error_patterns", record.error_patterns or [])
+            record.primary_error_type = profile_data.get("primary_error_type", record.primary_error_type or "")
+            record.strengths = profile_data.get("strengths", record.strengths or [])
+            record.weaknesses = profile_data.get("weaknesses", record.weaknesses or [])
+            record.interests = profile_data.get("interests", record.interests or [])
+            record.confidence_score = float(profile_data.get("confidence_score", record.confidence_score or 60))
+            record.cognitive_profile = cognitive
+            record.daily_strategy = profile_data.get("daily_strategy", record.daily_strategy or "")
+            record.summary = profile_data.get("summary", record.summary or "")
+            record.profile_version = (record.profile_version or 1) + 1
+            record.source = "agent"
+        else:
+            record = StudentProfile(
+                user_id=uid,
+                ability_level=profile_data.get("ability_level", "beginner"),
+                learning_style=profile_data.get("learning_style", "reading"),
+                pace=profile_data.get("pace", "moderate"),
+                learning_rhythm=profile_data.get("learning_rhythm", "持续型"),
+                knowledge_mastery=profile_data.get("knowledge_mastery", {}),
+                activity_score=float(profile_data.get("activity_score", 0)),
+                focus_score=float(profile_data.get("focus_score", 75)),
+                resource_preferences=profile_data.get("resource_preferences", {}),
+                error_patterns=profile_data.get("error_patterns", []),
+                primary_error_type=profile_data.get("primary_error_type", ""),
+                strengths=profile_data.get("strengths", []),
+                weaknesses=profile_data.get("weaknesses", []),
+                interests=profile_data.get("interests", []),
+                confidence_score=float(profile_data.get("confidence_score", 60)),
+                cognitive_profile=cognitive,
+                daily_strategy=profile_data.get("daily_strategy", ""),
+                summary=profile_data.get("summary", ""),
+                source="agent",
+            )
+            db.add(record)
+
+        # 2. 同步更新 users.profile_data
+        user_result = await db.execute(select(User).where(User.id == uid))
+        user = user_result.scalar_one_or_none()
+        if user:
+            user.profile_data = profile_data
+
+        await db.commit()
+        logger.info(
+            "💾 画像已持久化: user=%s, level=%s, version=%d, weaknesses=%d",
+            user_id, record.ability_level, record.profile_version,
+            len(record.weaknesses or []),
+        )
+        return True
+
+
+# ================================================================
 #                      图构建器（v3）
 # ================================================================
 
@@ -332,6 +508,7 @@ class MultiAgentGraph:
         event_payload: Optional[Dict[str, Any]] = None,
         max_iterations: int = 5,
         existing_state: Optional[Dict[str, Any]] = None,
+        persist_profile: bool = True,
     ) -> Dict[str, Any]:
         """
         运行一次事件驱动的学习会话（v3）
@@ -345,6 +522,7 @@ class MultiAgentGraph:
             event_payload: 事件携带数据
             max_iterations: 最大迭代次数
             existing_state: 已有会话状态（继续会话时传入）
+            persist_profile: 是否持久化画像（默认 True）
         """
         if self._compiled is None:
             self.build()
@@ -367,6 +545,12 @@ class MultiAgentGraph:
                 event_payload=event_payload,
             )
 
+            # ★ 关键修复：从数据库加载已有画像到 state
+            if user_id and user_id != "default" and not initial_state.get("student_profile"):
+                existing_profile = _load_existing_profile(user_id)
+                if existing_profile:
+                    initial_state["student_profile"] = existing_profile
+
         if user_messages:
             initial_state["user_messages"] = user_messages
         initial_state["max_iterations"] = max_iterations
@@ -374,14 +558,24 @@ class MultiAgentGraph:
         start_time = time.time()
 
         logger.info(
-            "[START] 事件驱动会话 | 事件: %s | 学科: %s | 目标: %s | 用户: %s",
+            "[START] 事件驱动会话 | 事件: %s | 学科: %s | 目标: %s | 用户: %s | 已有画像: %s",
             event_type, subject, goal, user_id,
+            "是" if initial_state.get("student_profile", {}).get("ability_level") else "否",
         )
 
         final_state = self._compiled.invoke(initial_state)
 
         elapsed = time.time() - start_time
         summary = self._build_summary(final_state, elapsed)
+
+        # ★ 关键修复：画像持久化（graph 执行完后写入 DB）
+        if persist_profile and user_id and user_id != "default":
+            profile_data = final_state.get("student_profile", {})
+            if profile_data and profile_data.get("ability_level"):
+                try:
+                    _persist_profile_to_db_sync(user_id, profile_data)
+                except Exception as e:
+                    logger.warning("画像持久化失败（非致命）: %s", e)
 
         logger.info(
             "[DONE] 会话完成 | 耗时: %.1fs | 阶段: %s | 路径步数: %d",

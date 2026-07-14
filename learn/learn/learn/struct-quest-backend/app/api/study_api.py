@@ -623,6 +623,334 @@ async def get_daily_tasks(
     return await generate_daily_tasks(db, user)
 
 
+@router.get("/ai-advice")
+async def get_ai_advice(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    AI 个性化学习建议（基于 Agent 画像 + 近期学习数据）
+
+    返回：
+    - advice: 一段个性化的中文学习建议
+    - streak: 连续学习天数
+    - week_active:本周活跃天数
+    - motivation: 激励话语
+    """
+    user_id = getattr(user, 'id', None)
+
+    # 1. 从 Agent 画像获取信息
+    weaknesses = []
+    mastery = {}
+    daily_strategy = ""
+    ability_level = "beginner"
+
+    try:
+        from app.models.student_profile import StudentProfile
+        sp_result = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user_id))
+        sp = sp_result.scalar_one_or_none()
+        if sp:
+            weaknesses = sp.weaknesses or []
+            mastery = sp.knowledge_mastery or {}
+            daily_strategy = sp.daily_strategy or ""
+            ability_level = sp.ability_level or "beginner"
+    except Exception:
+        pass
+
+    # 降级：从 user.profile_data 读取
+    if not weaknesses:
+        try:
+            u_result = await db.execute(select(User).where(User.id == user_id))
+            u = u_result.scalar_one_or_none()
+            if u and u.profile_data and isinstance(u.profile_data, dict):
+                pd = u.profile_data
+                weaknesses = pd.get("weaknesses", [])
+                mastery = pd.get("knowledge_mastery", {})
+                daily_strategy = pd.get("daily_strategy", "")
+                ability_level = pd.get("ability_level", "beginner")
+        except Exception:
+            pass
+
+    # 2. 获取连续学习天数和本周活跃
+    tz = timezone(timedelta(hours=8))
+    local_now = datetime.now(timezone.utc).astimezone(tz)
+    week_start = (local_now - timedelta(days=local_now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start_utc = week_start.astimezone(timezone.utc)
+
+    streak = await _calc_streak(db, user_id)
+    week_active_days = await _calc_week_days(db, user_id, week_start_utc)
+    week_active_count = len(week_active_days)
+
+    # 3. 今日学习时长
+    today_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start_utc = today_start.astimezone(timezone.utc)
+    result = await db.execute(
+        select(sa_func.coalesce(sa_func.sum(StudySession.duration_seconds), 0))
+        .where(StudySession.user_id == user_id, StudySession.started_at >= today_start_utc)
+    )
+    today_seconds = result.scalar() or 0
+    today_minutes = today_seconds // 60
+
+    # 4. 生成 AI 建议
+    advice_parts = []
+
+    # 4a. 基于薄弱点
+    if weaknesses:
+        top_weak = weaknesses[:2]
+        advice_parts.append(f"你的薄弱点集中在{'、'.join(top_weak)}，建议每天安排30分钟专项练习")
+
+    # 4b. 基于知识掌握度
+    if mastery:
+        low_mastery = [(k, v) for k, v in mastery.items() if float(v) < 50]
+        sorted_low = sorted(low_mastery, key=lambda x: x[1])
+        if sorted_low:
+            urgent = sorted_low[0]
+            advice_parts.append(f"「{urgent[0]}」掌握度仅{urgent[1]:.0f}%，需要优先攻克")
+        else:
+            high_avg = sum(float(v) for v in mastery.values()) / max(len(mastery), 1)
+            if high_avg >= 70:
+                advice_parts.append("知识掌握良好，可以挑战更高难度的内容")
+
+    # 4c. 基于学习节奏
+    if streak >= 7:
+        advice_parts.append(f"已连续学习{streak}天，节奏很棒，保持下去")
+    elif streak >= 3:
+        advice_parts.append(f"连续{streak}天学习，状态持续回升中")
+    elif streak == 0 and week_active_count <= 1:
+        level_hint = {"beginner": "从「数据结构基本概念」入手", "intermediate": "试试二叉树遍历", "advanced": "挑战红黑树或图算法", "expert": "研究B+树底层实现"}
+        advice_parts.append(f"最近学习较少，{level_hint.get(ability_level, '建议从基础开始')}，重新找回状态")
+
+    # 4d. 基于今日时长
+    if today_minutes >= 60:
+        advice_parts.append("今天已学习超过1小时，劳逸结合很重要")
+    elif today_minutes > 0:
+        advice_parts.append(f"今天已学习{today_minutes}分钟，继续保持节奏")
+
+    # 4e. 基于 daily_strategy
+    if daily_strategy and daily_strategy not in advice_parts:
+        advice_parts.append(daily_strategy)
+
+    # 组装
+    if not advice_parts:
+        advice_parts.append("开启你的数据结构学习之旅，从基础知识开始稳步前进")
+
+    advice_text = "。".join(advice_parts[:3]) + "。"
+
+    # 5. 激励话语
+    if streak >= 14:
+        motivation = "你已经坚持两周了，距离掌握数据结构又近了一大步！"
+    elif streak >= 7:
+        motivation = "一周的坚持很了不起，数据结构的大门已经为你敞开"
+    elif streak >= 3:
+        motivation = "坚持就是胜利，每一个基础概念都是攀登高峰的阶梯"
+    elif today_minutes > 0:
+        motivation = "每一分钟的学习都在为未来添砖加瓦"
+    else:
+        motivation = "种一棵树最好的时间是十年前，其次是现在 —— 开始学习吧"
+
+    return {
+        "advice": advice_text,
+        "motivation": motivation,
+        "streak": streak,
+        "week_active_days": week_active_days,
+        "week_active_count": week_active_count,
+        "today_minutes": today_minutes,
+        "ability_level": ability_level,
+        "weaknesses": weaknesses[:3],
+    }
+
+
+@router.get("/ai-tasks")
+async def get_ai_daily_tasks(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    AI 驱动的今日学习任务推荐（基于 Agent 画像）
+
+    优先级：
+    1. 薄弱点专项练习（从 Agent 画像 weaknesses 中选取）
+    2. 未完成的学习节点（LearningProgress 中的 in_progress）
+    3. 知识盲区探索（knowledge_mastery 中低分节点）
+    4. 兜底：推荐1-2个入门章节
+    """
+    user_id = getattr(user, 'id', None)
+    tasks = []
+    reason_parts = []
+
+    # 1. 从 Agent 画像获取薄弱点
+    weaknesses = []
+    knowledge_mastery = {}
+    try:
+        from app.models.student_profile import StudentProfile
+        sp_result = await db.execute(select(StudentProfile).where(StudentProfile.user_id == user_id))
+        sp = sp_result.scalar_one_or_none()
+        if sp:
+            weaknesses = sp.weaknesses or []
+            knowledge_mastery = sp.knowledge_mastery or {}
+    except Exception:
+        pass
+
+    # 如果 agent 画像没有，尝试从 user.profile_data 获取
+    if not weaknesses:
+        try:
+            u_result = await db.execute(select(User).where(User.id == user_id))
+            u = u_result.scalar_one_or_none()
+            if u and u.profile_data and isinstance(u.profile_data, dict):
+                pd = u.profile_data
+                weaknesses = pd.get("weaknesses", [])
+                knowledge_mastery = pd.get("knowledge_mastery", {})
+        except Exception:
+            pass
+
+    # 2. 查询所有知识节点（用于映射名称）
+    all_nodes_result = await db.execute(select(KnowledgeNode))
+    all_nodes = {n.id: n for n in all_nodes_result.scalars().all()}
+
+    # 3. 查询进行中的学习节点
+    in_progress_tasks = []
+    try:
+        prog_result = await db.execute(
+            select(LearningProgress).where(
+                LearningProgress.user_id == user_id,
+                LearningProgress.status.in_(["in_progress", "learning"]),
+            ).order_by(LearningProgress.started_at.desc()).limit(3)
+        )
+        for prog in prog_result.scalars().all():
+            node = all_nodes.get(prog.node_id)
+            node_name = node.title if node else prog.node_id
+            in_progress_tasks.append({
+                "nodeId": prog.node_id,
+                "name": f"继续「{node_name}」的学习",
+                "progress": prog.progress or 0,
+                "reason": "上次学习未完成，继续推进",
+                "type": "继续学习",
+            })
+    except Exception:
+        pass
+
+    # 4. 生成任务
+    used_node_ids = set()
+
+    # 4a. 薄弱点专项练习（最高优先级）
+    if weaknesses:
+        for w in weaknesses[:2]:
+            # 尝试匹配知识节点
+            matched_node = None
+            w_lower = w.lower().replace(" ", "").replace("的", "")
+            for nid, node in all_nodes.items():
+                title_lower = node.title.lower().replace(" ", "")
+                if w_lower in title_lower or any(part in title_lower for part in w_lower[:3]):
+                    matched_node = node
+                    break
+
+            if matched_node and matched_node.id not in used_node_ids:
+                used_node_ids.add(matched_node.id)
+                tasks.append({
+                    "id": f"strengthen-{matched_node.id}",
+                    "name": f"强化「{matched_node.title}」",
+                    "status": "pending",
+                    "progress": 0,
+                    "nodeId": matched_node.id,
+                    "reason": f"你的薄弱点，重点突破",
+                    "type": "弱项强化",
+                })
+            elif not matched_node:
+                # 薄弱点名称无法匹配到具体节点，找相近节点
+                for nid, node in all_nodes.items():
+                    if nid not in used_node_ids:
+                        used_node_ids.add(nid)
+                        tasks.append({
+                            "id": f"strengthen-{nid}",
+                            "name": f"强化「{node.title}」",
+                            "status": "pending",
+                            "progress": 0,
+                            "nodeId": nid,
+                            "reason": f"薄弱点「{w}」相关，加强学习",
+                            "type": "弱项强化",
+                        })
+                        break
+
+    # 4b. 进行中的任务
+    for pt in in_progress_tasks[:1]:
+        if pt["nodeId"] not in used_node_ids:
+            used_node_ids.add(pt["nodeId"])
+            tasks.append({
+                "id": f"continue-{pt['nodeId']}",
+                "name": pt["name"],
+                "status": "active",
+                "progress": pt["progress"],
+                "nodeId": pt["nodeId"],
+                "reason": pt["reason"],
+                "type": pt["type"],
+            })
+
+    # 4c. 知识盲区（mastery 低的节点）
+    if knowledge_mastery:
+        sorted_low = sorted(
+            [(k, v) for k, v in knowledge_mastery.items() if float(v) < 50],
+            key=lambda x: x[1]
+        )[:2]
+        for topic, score in sorted_low:
+            matched_node = None
+            for nid, node in all_nodes.items():
+                if topic in node.title or topic.replace(" ", "") in node.title.replace(" ", ""):
+                    matched_node = node
+                    break
+            if matched_node and matched_node.id not in used_node_ids:
+                used_node_ids.add(matched_node.id)
+                tasks.append({
+                    "id": f"remedy-{matched_node.id}",
+                    "name": f"补强「{matched_node.title}」",
+                    "status": "pending",
+                    "progress": 0,
+                    "nodeId": matched_node.id,
+                    "reason": f"掌握度仅 {score:.0f}%，急需加强",
+                    "type": "弱项强化",
+                })
+
+    # 4d. 兜底：推荐入门章节
+    beginner_nodes = [
+        ("ch01_data_concept", "数据结构基本概念"),
+        ("ch02_seq_list", "顺序表"),
+        ("ch03_stack_basic", "栈的基本概念"),
+    ]
+    for nid, nname in beginner_nodes:
+        if len(tasks) >= 4:
+            break
+        if nid not in used_node_ids:
+            used_node_ids.add(nid)
+            tasks.append({
+                "id": f"explore-{nid}",
+                "name": f"探索「{nname}」",
+                "status": "pending",
+                "progress": 0,
+                "nodeId": nid,
+                "reason": "推荐入门章节，开启学习之旅",
+                "type": "新内容探索",
+            })
+
+    if not tasks:
+        tasks.append({
+            "id": "guide-start",
+            "name": "开始你的数据结构学习之旅",
+            "status": "pending",
+            "progress": 0,
+            "nodeId": "ch01_data_concept",
+            "reason": "AI 推荐的第一步",
+            "type": "新内容探索",
+        })
+
+    return {
+        "tasks": tasks,
+        "total": len(tasks),
+        "ai_generated": True,
+        "based_on": {
+            "weaknesses": weaknesses[:3] if weaknesses else [],
+        },
+    }
+
+
 # ════════════════════════════════════════════════════════
 # 学习日历数据
 # ════════════════════════════════════════════════════════

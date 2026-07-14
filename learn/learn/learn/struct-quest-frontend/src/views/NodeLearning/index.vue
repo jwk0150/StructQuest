@@ -972,7 +972,7 @@ watch(nodeId, (newId, oldId) => {
 </script>
 
 <style lang="scss" scoped>
-.nl-layout { display:flex;flex-direction:column;height:calc(100vh - 64px);overflow:hidden;background:var(--bg-color,#f7f8fa); }
+.nl-layout { display:flex;flex-direction:column;height:calc(100vh - var(--topnav-height));overflow:hidden;background:var(--bg-color,#f7f8fa); }
 
 /* ═══ 顶部栏 ═══ */
 .nl-topbar { display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:48px;flex-shrink:0;background:#fff;border-bottom:1px solid var(--border-color,#e5e6eb);

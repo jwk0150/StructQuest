@@ -30,6 +30,63 @@ _CATEGORY_TITLES = {
 }
 
 
+@router.get("/chapters")
+async def get_chapters(
+    user: Optional[User] = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """获取各章节学习进度（用于首页章节进度条）"""
+    result = await db.execute(
+        select(KnowledgeNode).order_by(KnowledgeNode.order_index)
+    )
+    nodes = result.scalars().all()
+
+    # 获取用户进度（仅登录用户）
+    progress_map = {}
+    if user is not None:
+        progress_result = await db.execute(
+            select(LearningProgress).where(LearningProgress.user_id == user.id)
+        )
+        progress_map = {p.node_id: p for p in progress_result.scalars().all()}
+
+    # 按 category 分组计算平均进度
+    category_progress = {}
+    for node in nodes:
+        cat = node.category
+        if cat not in category_progress:
+            category_progress[cat] = {"total_progress": 0, "count": 0}
+        prog = progress_map.get(node.id)
+        node_progress = prog.progress if prog else 0
+        category_progress[cat]["total_progress"] += node_progress
+        category_progress[cat]["count"] += 1
+
+    chapters = []
+    category_order = [
+        "ch01_intro", "ch02_linear_list", "ch03_stack_queue",
+        "ch04_string_array", "ch05_tree", "ch06_graph",
+        "ch07_search", "ch08_sort"
+    ]
+    for cat in category_order:
+        if cat in category_progress:
+            info = category_progress[cat]
+            avg_progress = round(info["total_progress"] / max(info["count"], 1))
+            chapters.append({
+                "name": _CATEGORY_TITLES.get(cat, cat),
+                "progress": avg_progress,
+            })
+
+    # 补充未在有序列表中的分类
+    for cat, info in category_progress.items():
+        if cat not in category_order:
+            avg_progress = round(info["total_progress"] / max(info["count"], 1))
+            chapters.append({
+                "name": _CATEGORY_TITLES.get(cat, cat),
+                "progress": avg_progress,
+            })
+
+    return {"chapters": chapters}
+
+
 @router.get("/map")
 async def get_knowledge_map(
     user: Optional[User] = Depends(get_current_user),

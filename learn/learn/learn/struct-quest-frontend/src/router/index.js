@@ -37,13 +37,6 @@ const routes = [
     component: () => import('../views/Onboarding/index.vue'),
     meta: { requiresAuth: true }
   },
-  // ═══════ Mode Choice ═══════
-  {
-    path: '/mode-choice',
-    name: 'ModeChoice',
-    component: () => import('../views/ModeChoice/index.vue'),
-    meta: { requiresAuth: true }
-  },
   // ═══════ App Shell (authenticated, with sidebar) ═══════
   {
     path: '/app',
@@ -90,6 +83,11 @@ const routes = [
         path: 'resources',
         name: 'Resources',
         component: () => import('../views/Resources/index.vue')
+      },
+      {
+        path: 'viz',
+        name: 'Viz',
+        component: () => import('../views/Viz/index.vue')
       },
       {
         path: 'profile',
@@ -164,10 +162,6 @@ router.beforeEach(async (to) => {
     }
     if (!synced && hasLocalOnboardingDone()) {
       sessionStore.hasCompletedOnboarding = true
-      const localMode = getStorage(STORAGE_KEYS.LEARNING_MODE)
-      if (localMode) {
-        sessionStore.learningMode = localMode
-      }
     }
   }
 
@@ -199,28 +193,6 @@ router.beforeEach(async (to) => {
   ) {
     console.log('[Router Guard] 未完成引导 → 跳转 /onboarding')
     return '/onboarding'
-  }
-
-  // ★ 已完成引导但未选择模式 → 跳转模式选择页
-  if (
-    sessionStore.isAuthenticated &&
-    (sessionStore.hasCompletedOnboarding || hasLocalOnboardingDone()) &&
-    !sessionStore.learningMode &&
-    to.name !== 'ModeChoice' &&
-    to.meta.requiresAuth
-  ) {
-    console.log('[Router Guard] 未选择模式 → 跳转 /mode-choice')
-    return '/mode-choice'
-  }
-
-  // ★ 已选模式访问模式选择页 → 跳转 App
-  if (
-    sessionStore.isAuthenticated &&
-    sessionStore.learningMode &&
-    to.name === 'ModeChoice'
-  ) {
-    console.log('[Router Guard] 已选模式 → 跳转 /app')
-    return '/app'
   }
 
   console.log('[Router Guard] ✅ 放行:', to.path)

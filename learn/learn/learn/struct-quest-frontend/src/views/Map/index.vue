@@ -5,567 +5,756 @@
       <div class="topbar-left">
         <h1 class="map-title">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;">
-            <path d="M1 6v12c0 2 1 3 3 3h16c2 0 3-1 3-3V6c0-2-1-3-3-3H4C2 4 1 5 1 6Z"/>
-            <polyline points="1 10 12 4 23 10"/>
-            <path d="M12 4v8"/>
+            <circle cx="12" cy="12" r="3"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/>
+            <circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/>
+            <line x1="7" y1="7" x2="10" y2="10"/><line x1="17" y1="7" x2="14" y2="10"/>
+            <line x1="7" y1="17" x2="10" y2="14"/><line x1="17" y1="17" x2="14" y2="14"/>
           </svg>
-          知识地图
+          知识图谱
         </h1>
-        <p class="map-subtitle">数据结构与算法 · 推荐学习路径</p>
+        <p class="map-subtitle">数据结构与算法 · {{ allNodes.length }} 个知识点 · {{ chapters.length }} 大章节</p>
       </div>
       <div class="topbar-right">
+        <button class="action-btn" @click="expandAll" title="展开全部章节">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 8h12M8 2v12"/></svg>全部展开
+        </button>
+        <button class="action-btn" @click="collapseAll" title="收缩全部章节">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 8h12"/></svg>全部收缩
+        </button>
         <div class="legend">
-          <span class="legend-dot done"></span> <span :style="{ color: themeColor }">已完成</span>
-          <span class="legend-dot learning-pulse"></span> 学习中
-          <span class="legend-dot locked"></span> 未学习
+          <span class="legend-line solid"></span><span>包含</span>
+          <span class="legend-line dashed"></span><span>依赖</span>
+          <span class="legend-dot done"></span><span>已掌握</span>
+          <span class="legend-dot learning"></span><span>学习中</span>
         </div>
-
-        <!-- 模式切换指示 -->
-        <div v-if="isExamMode" class="mode-indicator" :style="{ background: themeColor + '12', color: themeColor }">
-          {{ currentModeConfig.label }}
-        </div>
-
+        <button class="toggle-dep-btn" :class="{ active: showDeps }" @click="showDeps = !showDeps">
+          {{ showDeps ? '隐藏' : '显示' }}依赖线
+        </button>
       </div>
     </div>
 
     <!-- 地图画布 -->
-    <div class="map-canvas">
+    <div class="map-canvas" ref="canvasRef"
+      @mousedown="onPanStart" @wheel.prevent="onWheel"
+    >
       <!-- 加载状态 -->
       <div v-if="loading" class="map-loading">
         <div class="map-loading-spinner"></div>
         <p class="map-loading-text">正在加载知识图谱...</p>
       </div>
-      
-      <!-- 空状态（加载完成但无数据） -->
-      <div v-else-if="!modeStages || modeStages.length === 0" class="map-empty">
-        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="32" cy="32" r="28" stroke="#ddd" stroke-width="2" fill="none" stroke-dasharray="4,4"/>
-          <path d="M24 28l8 8 8-8" stroke="#ccc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M32 36v-8" stroke="#ccc" stroke-width="2" stroke-linecap="round"/>
-        </svg>
+
+      <!-- 空状态 -->
+      <div v-else-if="!chapters.length" class="map-empty">
         <h3>暂无知识图谱数据</h3>
-        <p>知识图谱数据加载失败或尚未初始化，请初始化课程内容后重试。</p>
+        <p>知识图谱数据加载失败或尚未初始化。</p>
         <button class="map-empty-btn" @click="loadMapData">重新加载</button>
       </div>
-      
-      <!-- 地图内容 -->
-      <template v-else>
-      <div
-        class="map-inner"
-        :style="{ transform: 'scale(0.75)' }"
+
+      <!-- 可拖拽缩放的内容层 -->
+      <div v-else class="map-stage"
+        :style="{ transform: `translate(${panX}px, ${panY}px) scale(${scale})`, transformOrigin: 'center center', width: stageW + 'px', height: stageH + 'px', marginLeft: (-stageW/2) + 'px', marginTop: (-stageH/2) + 'px' }"
       >
         <!-- 背景装饰 -->
-        <svg class="map-terrain" :width="mapW" :height="mapH" xmlns="http://www.w3.org/2000/svg">
+        <svg class="map-bg" :width="stageW" :height="stageH">
           <defs>
-            <radialGradient id="tg1" cx="25%" cy="18%" r="45%">
-              <stop offset="0%" stop-color="rgba(224,122,95,0.08)" />
-              <stop offset="100%" stop-color="transparent" />
-            </radialGradient>
-            <radialGradient id="tg2" cx="72%" cy="48%" r="42%">
-              <stop offset="0%" stop-color="rgba(139,92,246,0.06)" />
-              <stop offset="100%" stop-color="transparent" />
-            </radialGradient>
-            <radialGradient id="tg3" cx="48%" cy="78%" r="38%">
+            <radialGradient id="bgGlow" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stop-color="rgba(59,130,246,0.05)" />
+              <stop offset="60%" stop-color="rgba(139,92,246,0.02)" />
               <stop offset="100%" stop-color="transparent" />
             </radialGradient>
           </defs>
-          <ellipse cx="260" cy="190" rx="280" ry="180" fill="url(#tg1)" />
-          <ellipse cx="740" cy="370" rx="340" ry="220" fill="url(#tg2)" />
-          <ellipse cx="480" cy="650" rx="260" ry="200" fill="url(#tg3)" />
-          <!-- 网格线 -->
-          <g opacity="0.06">
-            <line v-for="i in 11" :key="'v'+i" :x1="i*100" y1="0" :x2="i*100" y2="800" stroke="#888" stroke-width="0.5"/>
-            <line v-for="i in 8" :key="'h'+i" x1="0" :y1="i*100" x2="1100" :y2="i*100" stroke="#888" stroke-width="0.5"/>
-          </g>
+          <circle :cx="cx" :cy="cy" :r="R1 + 120" fill="url(#bgGlow)" />
+          <circle :cx="cx" :cy="cy" :r="R1" fill="none" stroke="rgba(0,0,0,0.04)" stroke-width="1" stroke-dasharray="4,6" />
         </svg>
 
-        <!-- ═══ 路径连接层（已移除连线，保留占位） ═══ -->
-        <svg class="map-roads" :width="mapW" :height="mapH" xmlns="http://www.w3.org/2000/svg"></svg>
+        <!-- ═══ 连线层 ═══ -->
+        <svg class="map-lines" :width="stageW" :height="stageH">
+          <!-- 包含关系：中心→章节（实线） -->
+          <g class="containment-lines">
+            <line v-for="ch in chapters" :key="'c-c-'+ch.id"
+              :x1="cx" :y1="cy" :x2="ch.x" :y2="ch.y"
+              :stroke="ch.color" stroke-width="2" stroke-opacity="0.35"
+            />
+          </g>
+          <!-- 包含关系：章节→已展开的子节点（实线） -->
+          <g class="containment-lines">
+            <template v-for="ch in chapters" :key="'cs-'+ch.id">
+              <line v-if="expandedSet.has(ch.id)"
+                v-for="n in ch.nodes" :key="'l-'+n.id"
+                :x1="ch.x" :y1="ch.y" :x2="n.x" :y2="n.y"
+                :stroke="ch.color" stroke-width="1.5" stroke-opacity="0.25"
+              />
+            </template>
+          </g>
+          <!-- 依赖关系：仅涉及已展示节点的虚线 -->
+          <g class="dependency-lines" v-if="showDeps">
+            <path v-for="d in visibleDepLines" :key="'d-'+d.from+'-'+d.to"
+              :d="d.path"
+              fill="none"
+              :stroke="isLineHighlighted(d) ? '#ef4444' : '#94a3b8'"
+              :stroke-width="isLineHighlighted(d) ? 2 : 1"
+              :stroke-opacity="isLineHighlighted(d) ? 0.9 : 0.18"
+              stroke-dasharray="5,4"
+              :marker-end="isLineHighlighted(d) ? 'url(#arrowHl)' : 'url(#arrowDim)'"
+            />
+          </g>
+          <defs>
+            <marker id="arrowDim" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 Z" fill="#94a3b8" opacity="0.4"/>
+            </marker>
+            <marker id="arrowHl" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+              <path d="M0,0 L9,4.5 L0,9 Z" fill="#ef4444"/>
+            </marker>
+          </defs>
+        </svg>
 
-        <!-- ═══ 分支连线（已移除） ═══ -->
-        <svg class="map-branches" :width="mapW" :height="mapH" xmlns="http://www.w3.org/2000/svg"></svg>
-
-        <!-- ═══ 大类城市节点 ═══ -->
-        <div
-          v-for="(stage, idx) in modeStages"
-          :key="stage.id"
-          class="map-city"
-          :class="{
-            'is-expanded': expandedStage === stage.id,
-            'is-mastered': stage.status === 'mastered',
-            'is-active': stage.status === 'learning',
-            'is-locked': !stage.status && !stage.recommended,
-            'is-highlight': highlightStage === stage.id,
-            [`status-${getNodeStatusClass(stage)}`]: true
-          }"
-          :style="{ left: stage.x - stageRadius + 'px', top: stage.y - stageRadius + 'px', opacity: getNodeStatusClass(stage) === 'locked' ? 0.7 : 1 }"
-          @click="selectStage(stage)"
-          @mouseenter="highlightStage = stage.id"
-          @mouseleave="highlightStage = null"
+        <!-- ═══ 中心枢纽 ═══ -->
+        <div class="node-center"
+          :style="{ left: cx + 'px', top: cy + 'px' }"
+          :class="{ selected: selectedType === 'center' }"
+          @click.stop="selectCenter"
         >
-          <div class="city-shadow"></div>
-          <div class="city-outer-ring"></div>
-          <div class="city-inner">
-            <div class="city-icon">
-              <svg width="26" height="26" viewBox="0 0 28 28" fill="none" v-html="stage.icon"></svg>
-            </div>
-            <span class="city-num">{{ stage.num }}</span>
-            <span class="city-name">{{ stage.title }}</span>
-            <span class="city-count">{{ stage.nodes.length }}个知识点</span>
-            <!-- ★ 已完成大章节的状态标语 -->
-            <span v-if="stage.status === 'mastered'" class="city-mastered-label">✅ 已完成</span>
-            <span v-else-if="stage.status === 'learning'" class="city-mastered-label learning-label">📖 学习中</span>
-          </div>
-          <!-- 三种状态徽章 -->
-          <div v-if="stage.status === 'mastered'" class="city-badge done">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
-          </div>
-          <div v-else-if="stage.status === 'learning'" class="city-badge learning-pulse">●</div>
-          <div v-else class="city-badge locked">🔒</div>
-          <!-- 考试模式频率标注 -->
-          <div v-if="isExamMode && stage._examMeta" class="exam-freq-badge" :title="stage._examMeta.examCount">
-            {{ stage._examMeta.frequency }}
+          <div class="center-inner">
+            <span class="center-title">数据结构</span>
+            <span class="center-sub">{{ totalCompleted }}/{{ allNodes.length }} 已掌握</span>
           </div>
         </div>
 
-        <!-- ═══ 展开面板 ═══ -->
-        <transition name="panel-zoom">
-          <div
-            v-if="expandedStage"
-            class="sub-panel"
-            :style="panelStyle"
+        <!-- ═══ 章节节点 ═══ -->
+        <div v-for="ch in chapters" :key="ch.id"
+          class="node-chapter"
+          :class="[chapterStatusClass(ch), { selected: selectedId === ch.id, expanded: expandedSet.has(ch.id), dim: isDimmed(ch.id) }]"
+          :style="{ left: ch.x + 'px', top: ch.y + 'px', '--ch-color': ch.color }"
+          @click.stop="toggleChapter(ch)"
+          @mouseenter="hoverId = ch.id"
+          @mouseleave="hoverId = null"
+        >
+          <div class="chapter-circle">
+            <span class="chapter-num">{{ ch.num }}</span>
+            <!-- 展开/收缩指示器 -->
+            <span class="chapter-toggle-icon" :class="{ open: expandedSet.has(ch.id) }">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6l4 4 4-4"/></svg>
+            </span>
+          </div>
+          <span class="chapter-name">{{ ch.title }}</span>
+          <span class="chapter-count">{{ ch.nodes.length }} 个知识点</span>
+          <span class="chapter-progress">{{ chapterCompleted(ch) }}/{{ ch.nodes.length }}</span>
+        </div>
+
+        <!-- ═══ 子节点（仅渲染已展开章节的子节点） ═══ -->
+        <template v-for="ch in chapters" :key="'sn-'+ch.id">
+          <div v-if="expandedSet.has(ch.id)" v-for="n in ch.nodes" :key="n.id"
+            class="node-sub"
+            :class="[nodeStatusClass(n), { selected: selectedId === n.id, dim: isDimmed(n.id), hl: isHighlighted(n.id) }]"
+            :style="{ left: n.x + 'px', top: n.y + 'px', '--ch-color': n._color }"
+            @click.stop="selectSubNode(n)"
+            @mouseenter="hoverId = n.id"
+            @mouseleave="hoverId = null"
           >
-            <div class="panel-header">
-              <div class="panel-title-row">
-                <span class="panel-stage-num">{{ expandedData.num }}</span>
-                <h3 class="panel-title">{{ expandedData.title }}</h3>
-              </div>
-              <p class="panel-desc">{{ expandedData.description }}</p>
-              <button class="panel-close" @click.stop="expandedStage = null">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 3L13 13M13 3L3 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                </svg>
-                关闭
-              </button>
+            <div class="sub-dot">
+              <svg v-if="n._status === 'done'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>
+              <span v-else-if="n._status === 'learning'" class="sub-pulse"></span>
             </div>
-            <div class="panel-list">
-              <div
-                v-for="(node, idx) in expandedData.nodes"
-                :key="node.id"
-                class="sub-item"
-                :class="[getNodeStatusClass(node), { 'has-exam': !!node._examMeta }]"
-                @click.stop="onNodeClick(node)"
-              >
-                <div class="sub-item-index" :class="getNodeStatusClass(node)">{{ String(idx + 1).padStart(2, '0') }}</div>
-                <div class="sub-item-body">
-                  <div class="sub-item-head">
-                    <span class="sub-item-name">{{ node.name }}</span>
-                    <!-- 考试频率标签 -->
-                    <span v-if="node._examMeta" class="exam-freq-tag">{{ node._examMeta.frequency }}</span>
-                    <span v-if="node.recommended" class="sub-item-rec">AI推荐</span>
-                    <span v-if="getNodeStatusClass(node) === 'done'" class="sub-item-status done">✅ 已完成</span>
-                    <span v-else-if="getNodeStatusClass(node) === 'learning'" class="sub-item-status learning">📖 学习中 {{ node.progress }}%</span>
-                    <span v-else class="sub-item-status locked">⬜ 未学习</span>
-                  </div>
-                  <p class="sub-item-desc">{{ node.desc }}</p>
-                  <div v-if="node.status === 'learning' && node.progress" class="sub-item-bar">
-                    <div class="sub-item-fill" :style="{ width: node.progress + '%' }"></div>
-                  </div>
-                </div>
-                <div class="sub-item-arrow">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M6 4L10 8L6 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </div>
-              </div>
-            </div>
+            <span class="sub-label">{{ n.name }}</span>
           </div>
-        </transition>
-
-        <!-- 指南针 -->
-        <div class="map-compass">
-          <svg width="46" height="46" viewBox="0 0 46 46" fill="none">
-            <circle cx="23" cy="23" r="21" stroke="rgba(0,0,0,0.08)" stroke-width="1.5" />
-            <path d="M23 5L27 21L23 41L19 21Z" fill="rgba(0,0,0,0.06)" />
-            <path d="M23 5L19 21H27Z" fill="#E07A5F" opacity="0.5" />
-            <text x="23" y="14" text-anchor="middle" fill="rgba(0,0,0,0.2)" font-size="6" font-weight="700">N</text>
-          </svg>
-        </div>
+        </template>
       </div>
-    </template>
+
+      <!-- 缩放控件 -->
+      <div class="zoom-controls">
+        <button @click="zoomIn" title="放大">＋</button>
+        <button @click="zoomOut" title="缩小">−</button>
+        <button @click="resetView" title="重置视图">⟲</button>
+        <button @click="fitToExpanded" title="适应视图">⊡</button>
+        <span class="zoom-level">{{ Math.round(scale * 100) }}%</span>
+      </div>
     </div>
 
-    <!-- 节点详情弹窗 -->
-    <transition name="detail-slide">
-      <div v-if="selectedNode" class="detail-bar" @click.self="selectedNode = null">
-        <div class="detail-bar-inner">
-          <button class="detail-close" @click="selectedNode = null">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M4 4L14 14M14 4L4 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-          </button>
-          <div class="detail-left">
-            <span class="detail-tag" :class="selectedNode.status">{{ statusLabel(selectedNode.status) }}</span>
-            <h2 class="detail-name">{{ selectedNode.name }}</h2>
-            <p class="detail-desc">{{ selectedNode.fullDesc }}</p>
+    <!-- ═══ 右侧详情面板 ═══ -->
+    <transition name="panel-slide">
+      <div v-if="selectedType" class="detail-panel">
+        <button class="detail-close" @click="closePanel">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 3L13 13M13 3L3 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+
+        <!-- 中心概览 -->
+        <template v-if="selectedType === 'center'">
+          <div class="dp-header">
+            <span class="dp-badge center">课程总览</span>
+            <h2 class="dp-title">数据结构</h2>
           </div>
-          <div class="detail-mid">
-            <h4>包含知识点</h4>
-            <div class="detail-tags">
-              <span v-for="p in selectedNode.points" :key="p" class="detail-chip">{{ p }}</span>
+          <p class="dp-desc">本课程涵盖 {{ chapters.length }} 大章节、{{ allNodes.length }} 个知识点，从基础概念到进阶的平衡树、B+树、跳表等，构建完整的数据结构知识体系。点击各章节可展开查看详细知识点。</p>
+          <div class="dp-stats">
+            <div class="stat-item"><span class="stat-num">{{ totalCompleted }}</span><span class="stat-label">已掌握</span></div>
+            <div class="stat-item"><span class="stat-num">{{ totalLearning }}</span><span class="stat-label">学习中</span></div>
+            <div class="stat-item"><span class="stat-num">{{ allNodes.length - totalCompleted - totalLearning }}</span><span class="stat-label">未学习</span></div>
+            <div class="stat-item"><span class="stat-num">{{ completionRate }}%</span><span class="stat-label">完成率</span></div>
+          </div>
+          <div class="dp-section">
+            <h4>章节列表（点击展开详情）</h4>
+            <div v-for="ch in chapters" :key="ch.id" class="chapter-row" @click="toggleChapter(ch)">
+              <span class="chapter-row-dot" :style="{ background: ch.color }"></span>
+              <span class="chapter-row-name">{{ ch.num }} · {{ ch.title }}</span>
+              <span class="chapter-row-count">{{ chapterCompleted(ch) }}/{{ ch.nodes.length }}</span>
+              <span class="chapter-row-arrow" :class="{ open: expandedSet.has(ch.id) }">›</span>
             </div>
           </div>
-          <div class="detail-right">
-            <p class="detail-tip">{{ selectedNode.aiSuggestion }}</p>
-            <button
-              class="detail-action"
-              @click="startLearn(selectedNode)"
-            >
-              {{ selectedNode.status === 'completed' || selectedNode.status === 'mastered' ? '复习巩固' : selectedNode.status === 'learning' || selectedNode.status === 'in_progress' ? '继续学习' : '开始学习' }}
-            </button>
-            <button
-              class="detail-action exam-action"
-              @click="goToExam(selectedNode)"
-            >
-              📝 章节测试
-            </button>
-            <div v-if="selectedNode.status === 'completed' || selectedNode.status === 'mastered'" class="chapter-badge">✅ 已完结</div>
-            <div v-else-if="selectedNode.status === 'learning' || selectedNode.status === 'in_progress'" class="chapter-badge learning-badge">📖 学习中</div>
-            <div v-else class="chapter-badge available-badge">📚 未学习</div>
+        </template>
+
+        <!-- 章节详情 -->
+        <template v-else-if="selectedType === 'chapter'">
+          <div class="dp-header">
+            <span class="dp-badge" :style="{ background: selectedData._color + '18', color: selectedData._color }">第{{ selectedData.num }}章</span>
+            <h2 class="dp-title">{{ selectedData.title }}</h2>
           </div>
-        </div>
+          <p class="dp-desc">{{ selectedData.description }}</p>
+          <div class="dp-progress-bar">
+            <div class="dp-progress-fill" :style="{ width: chapterProgress(selectedData) + '%', background: selectedData._color }"></div>
+          </div>
+          <div class="dp-section">
+            <h4>包含知识点（{{ selectedData.nodes.length }}）</h4>
+            <div v-for="(n, i) in selectedData.nodes" :key="n.id"
+              class="sub-row"
+              :class="nodeStatusClass(n)"
+              @click="selectSubNode(n); ensureChapterExpanded(n)"
+            >
+              <span class="sub-row-idx">{{ String(i + 1).padStart(2, '0') }}</span>
+              <div class="sub-row-body">
+                <span class="sub-row-name">{{ n.name }}</span>
+                <span class="sub-row-desc">{{ n.desc || n.description || '' }}</span>
+              </div>
+              <span class="sub-row-status">{{ statusLabel(n._status) }}</span>
+            </div>
+          </div>
+        </template>
+
+        <!-- 子节点详情 -->
+        <template v-else-if="selectedType === 'sub'">
+          <div class="dp-header">
+            <span class="dp-badge" :style="{ background: selectedData._color + '18', color: selectedData._color }">{{ selectedData._chapterTitle }}</span>
+            <h2 class="dp-title">{{ selectedData.name }}</h2>
+          </div>
+          <p class="dp-desc">{{ selectedData.fullDesc || selectedData.desc || '' }}</p>
+
+          <div v-if="selectedData.prerequisites && selectedData.prerequisites.length" class="dp-section">
+            <h4>前置知识</h4>
+            <div class="dep-chips">
+              <span v-for="pid in selectedData.prerequisites" :key="pid"
+                class="dep-chip"
+                @click="jumpToNode(pid)"
+              >{{ nodeName(pid) }}</span>
+            </div>
+          </div>
+
+          <div v-if="dependentsOf(selectedData.id).length" class="dp-section">
+            <h4>后续知识</h4>
+            <div class="dep-chips">
+              <span v-for="did in dependentsOf(selectedData.id)" :key="did"
+                class="dep-chip subsequent"
+                @click="jumpToNode(did)"
+              >{{ nodeName(did) }}</span>
+            </div>
+          </div>
+
+          <div class="dp-section">
+            <h4>核心知识点</h4>
+            <div class="point-tags">
+              <span v-for="p in (selectedData.points || [])" :key="p" class="point-tag">{{ p }}</span>
+            </div>
+          </div>
+
+          <div class="dp-tip">{{ selectedData.aiSuggestion || selectedData.ai_suggestion || '建议按顺序学习' }}</div>
+
+          <div class="dp-actions">
+            <button class="btn-primary" @click="startLearn(selectedData)">
+              {{ selectedData._status === 'done' ? '复习巩固' : selectedData._status === 'learning' ? '继续学习' : '开始学习' }}
+            </button>
+            <button class="btn-secondary" @click="goToExam(selectedData)">章节测试</button>
+          </div>
+        </template>
       </div>
     </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onActivated, watch } from 'vue'
+import { ref, computed, onMounted, onActivated, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import knowledgeApi from '@/api/knowledge'
-import { useSessionStore } from '../../store/session'
-import { getModeKnowledgeMap, modeConfigs } from '../../data/knowledgeModes'
 
 const router = useRouter()
-const session = useSessionStore()
 
-// ═══ 当前学习模式 ═══
-const currentMode = computed(() => session.learningMode || 'beginner')
-const currentModeConfig = computed(() => modeConfigs[currentMode.value] || modeConfigs.beginner)
+// ═══ 画布尺寸（足够大以容纳所有展开的节点） ═══
+const stageW = 2200
+const stageH = 1800
+const cx = stageW / 2
+const cy = stageH / 2
+const R1 = 280           // 章节环半径
 
-// ═══ 地图尺寸 ═══
-const mapW = 1100
-const mapH = 800
+// ═══ 章节配色 ═══
+const CHAPTER_META = {
+  ch01_intro:        { num: '01', title: '绪论',         color: '#3b82f6' },
+  ch02_linear_list:  { num: '02', title: '线性表',       color: '#22c55e' },
+  ch03_stack_queue:  { num: '03', title: '栈和队列',     color: '#06b6d4' },
+  ch04_string_array: { num: '04', title: '串数组广义表', color: '#6366f1' },
+  ch05_tree:         { num: '05', title: '树和二叉树',   color: '#14b8a6' },
+  ch06_graph:        { num: '06', title: '图',           color: '#8b5cf6' },
+  ch07_search:       { num: '07', title: '查找',         color: '#f97316' },
+  ch08_sort:         { num: '08', title: '排序',         color: '#ec4899' },
+}
 
 // ═══ 数据 ═══
-const stageRadius = 64
-const stages = ref([])
-const modeStages = ref([])   // 模式过滤后的stages
-const themeColor = ref('#3b82f6')
-const isExamMode = ref(false)
 const loading = ref(true)
+const chapters = ref([])          // 含位置和子节点位置
+const allNodes = ref([])          // 扁平节点列表（原始数据）
+const showDeps = ref(true)
 
-// 监听模式变化，重新过滤图谱
-watch(currentMode, () => {
-  applyModeFilter()
-})
+// ═══ 展开/收缩状态 ═══
+const expandedSet = ref(new Set()) // 已展开的章节 ID 集合
 
-// ★ 调试：监控 modeStages 状态变化
-watch(modeStages, (stages) => {
-  if (stages && stages.length > 0) {
-    console.log(`[Watch] 共 ${stages.length} 个大章节:`, stages.map(s => `${s.id}(${s.title})`))
-    stages.forEach(s => {
-      console.log(`  [Watch] stage ${s.id} "${s.title}": status="${s.status}", nodes:`, s.nodes.map(n => `${n.name}:${n.status}`))
-    })
+// ═══ 平移缩放 ═══
+const scale = ref(0.65)
+const panX = ref(0)
+const panY = ref(0)
+const canvasRef = ref(null)
+let isPanning = false
+let panStartX = 0
+let panStartY = 0
+let panOriginX = 0
+let panOriginY = 0
+
+function onPanStart(e) {
+  if (e.target.closest('.node-center, .node-chapter, .node-sub, .detail-panel, .zoom-controls')) return
+  isPanning = true
+  panStartX = e.clientX
+  panStartY = e.clientY
+  panOriginX = panX.value
+  panOriginY = panY.value
+  window.addEventListener('mousemove', onPanMove)
+  window.addEventListener('mouseup', onPanEnd)
+}
+function onPanMove(e) {
+  if (!isPanning) return
+  panX.value = panOriginX + (e.clientX - panStartX)
+  panY.value = panOriginY + (e.clientY - panStartY)
+}
+function onPanEnd() {
+  isPanning = false
+  window.removeEventListener('mousemove', onPanMove)
+  window.removeEventListener('mouseup', onPanEnd)
+}
+function onWheel(e) {
+  const delta = e.deltaY > 0 ? -0.08 : 0.08
+  scale.value = Math.min(2.5, Math.max(0.2, scale.value + delta))
+}
+function zoomIn() { scale.value = Math.min(2.5, scale.value + 0.15) }
+function zoomOut() { scale.value = Math.max(0.2, scale.value - 0.15) }
+function resetView() {
+  scale.value = 0.65
+  panX.value = 0
+  panY.value = 0
+}
+
+/** 根据当前展开状态自适应缩放 */
+function fitToExpanded() {
+  const expCount = expandedSet.value.size
+  if (expCount === 0) {
+    scale.value = 0.65
+    panX.value = 0
+    panY.value = 0
+    return
   }
-}, { deep: true })
+  // 展开越多，需要越小的 scale 以容纳所有内容
+  const targetScale = Math.max(0.28, 0.65 - expCount * 0.06)
+  animateScale(scale.value, targetScale)
+}
 
-// 从后端加载知识图谱数据（原始全量数据）
+/** 平滑过渡到目标缩放 */
+function animateScale(from, to) {
+  const steps = 12
+  let step = 0
+  const diff = to - from
+  const tick = () => {
+    step++
+    const t = step / steps
+    const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+    scale.value = from + diff * ease
+    if (step < steps) requestAnimationFrame(tick)
+  }
+  tick()
+}
+
+// ═══ 加载数据 ═══
 async function loadMapData() {
+  loading.value = true
   try {
     const res = await knowledgeApi.getMap()
-    // 将后端数据映射到 stages 格式（保留原有位置坐标）
-    stages.value = buildStagesFromBackend(res.categories || [], res.nodes || [])
+    allNodes.value = res.nodes || []
+    chapters.value = buildLayout(res.categories || [], res.nodes || [])
   } catch (e) {
-    console.warn('[Map] 后端加载失败，使用本地数据:', e)
-    // fallback
-    const { stages: fallbackStages } = await import('@/data/knowledgeMap.js')
-    stages.value = fallbackStages
+    console.warn('[Map] 后端加载失败，使用本地 fallback:', e)
+    const { stages: fallback } = await import('@/data/knowledgeMap.js')
+    const flatNodes = []
+    const cats = fallback.map(s => {
+      const ns = s.nodes.map(n => ({ ...n, category: s.id }))
+      flatNodes.push(...ns)
+      return { id: s.id, title: s.title, nodes: ns }
+    })
+    allNodes.value = flatNodes
+    chapters.value = buildLayout(cats, flatNodes)
   } finally {
     loading.value = false
-    applyModeFilter()
   }
 }
 
-// 根据当前模式过滤/重组知识图谱
-function applyModeFilter() {
-  const mode = currentMode.value
-  const config = currentModeConfig.value
+// ═══ 布局计算 ═══
+function buildLayout(categories, nodes) {
+  const order = ['ch01_intro','ch02_linear_list','ch03_stack_queue','ch04_string_array','ch05_tree','ch06_graph','ch07_search','ch08_sort']
+  const sorted = [...categories].sort((a, b) => {
+    const ak = a.id.replace(/^stage_/, '')
+    const bk = b.id.replace(/^stage_/, '')
+    return order.indexOf(ak) - order.indexOf(bk)
+  })
 
-  if (!stages.value.length) return
+  const nodeMap = {}
+  for (const n of nodes) nodeMap[n.id] = n
 
-  const mapResult = getModeKnowledgeMap(mode)
-  
-  // 如果后端返回了完整数据，使用后端数据 + 模式配置做筛选/覆盖
-  if (mapResult.isExamMode) {
-    // 考试模式：使用重组后的分类
-    modeStages.value = mapResult.stages.map(s => ({
-      ...s,
-      nodes: s.nodes.map(n => enrichNodeWithModeInfo(n, mode, config)),
-      _modeConfig: config,
-    }))
-  } else {
-    // 基础/入门模式：基于原始stages做筛选
-    const filtered = []
-    
-    for (const stage of stages.value) {
-      const includedNodeIds = config.includedNodeIds
-      let filteredNodes = stage.nodes
-      
-      // 如果有节点ID限制，只保留包含的节点
-      if (includedNodeIds) {
-        filteredNodes = stage.nodes.filter(n => includedNodeIds.includes(n.id))
-      }
-      
-      // 应用描述覆盖
-      filteredNodes = filteredNodes.map(n => enrichNodeWithModeInfo(n, mode, config))
-      
-      // 类别级别限制 - 兼容后端返回的 stage_xxx 和本地数据的 xxx 两种格式
-      if (config.includedCategories) {
-        const stageIdRaw = stage.id
-        const stageIdClean = stage.id.replace(/^stage_/, '')
-        const matches = config.includedCategories.includes(stageIdRaw) || config.includedCategories.includes(stageIdClean)
-        if (!matches) continue
-      }
-      
-      if (filteredNodes.length > 0 || !includedNodeIds) {
-        // ★ 基于过滤后（当前模式可见）的节点重新计算大章节状态
-        const finalNodes = includedNodeIds ? filteredNodes : filteredNodes.map(n => enrichNodeWithModeInfo(n, mode, config))
-        let recalcStatus = 'locked'
-        const allMastered = finalNodes.length > 0 && finalNodes.every(n => n.status === 'completed' || n.status === 'mastered')
-        const someLearning = finalNodes.some(n => n.status === 'in_progress' || n.status === 'learning')
-        if (allMastered) recalcStatus = 'mastered'
-        else if (someLearning) recalcStatus = 'learning'
-        else recalcStatus = null  // available/dormant
-
-        filtered.push({
-          ...stage,
-          status: recalcStatus,  // ★ 覆盖：基于可见节点重新计算的真实状态
-          nodes: finalNodes,
-          recommended: finalNodes.some(n => (n.status === 'available' || n.status === null) && (n.difficulty ?? 99) <= 2),
-          _modeConfig: config,
-        })
-      }
-    }
-    
-    modeStages.value = filtered
-  }
-
-  themeColor.value = mapResult.themeColor
-  isExamMode.value = mapResult.isExamMode
-}
-
-// 用模式信息丰富节点（描述覆盖、考试频率等）
-function enrichNodeWithModeInfo(node, mode, config) {
-  const enriched = { ...node }
-  
-  // 描述覆盖
-  if (config.nodeDescOverrides?.[node.id]) {
-    Object.assign(enriched, config.nodeDescOverrides[node.id])
-  }
-  
-  // 考试元信息
-  if (config.nodeExamMeta?.[node.id]) {
-    enriched._examMeta = config.nodeExamMeta[node.id]
-  }
-  
-  // 确保状态映射一致
-  if (node.status === 'completed') { enriched.status = 'mastered' }
-  if (node.status === 'in_progress') { enriched.status = 'learning' }
-  if (node.status === 'available' && node.status !== 'locked') { enriched.status = null }  // 可学习但未开始
-  
-  return enriched
-}
-
-// 使用modeStages作为渲染源（兼容旧的computed引用）
-// 在后续computed中，将 stages 引用替换为 modeStages
-
-// 后端数据 → 地图 stages 格式
-function buildStagesFromBackend(categories, allNodes) {
-  // ★ 位置定义（与 knowledgeMap.js 对齐）
-  const stagePositions = {
-    'stage_ch01_intro':        { x: 180, y: 200, title: '绪论', icon: '' },
-    'stage_ch02_linear_list':  { x: 440, y: 200, title: '线性表', icon: '' },
-    'stage_ch03_stack_queue':  { x: 700, y: 200, title: '栈和队列', icon: '' },
-    'stage_ch04_string_array': { x: 960, y: 200, title: '串数组广义表', icon: '' },
-    'stage_ch05_tree':         { x: 180, y: 550, title: '树和二叉树', icon: '' },
-    'stage_ch06_graph':        { x: 440, y: 550, title: '图', icon: '' },
-    'stage_ch07_search':       { x: 700, y: 550, title: '查找', icon: '' },
-    'stage_ch08_sort':         { x: 960, y: 550, title: '排序', icon: '' },
-  }
-
-  return categories.map(cat => {
-    // ★ 从 category id 提取 key（格式：stage_xxx 或直接 xxx）
+  return sorted.map((cat, i) => {
     const catKey = cat.id.replace(/^stage_/, '')
-    let pos = stagePositions[cat.id] || stagePositions[`stage_${catKey}`]
+    const meta = CHAPTER_META[catKey] || { num: String(i + 1).padStart(2, '0'), title: cat.title, color: '#888' }
+    const angle = (-90 + i * (360 / sorted.length)) * Math.PI / 180
+    const chX = cx + R1 * Math.cos(angle)
+    const chY = cy + R1 * Math.sin(angle)
 
-    // 如果找不到精确位置，用 fallback
-    if (!pos) {
-      const fallbackMap = {
-        ch01_intro: { x: 180, y: 200 },
-        ch02_linear_list: { x: 440, y: 200 },
-        ch03_stack_queue: { x: 700, y: 200 },
-        ch04_string_array: { x: 960, y: 200 },
-        ch05_tree: { x: 180, y: 550 },
-        ch06_graph: { x: 440, y: 550 },
-        ch07_search: { x: 700, y: 550 },
-        ch08_sort: { x: 960, y: 550 },
+    // 子节点布局：动态 R2 和角度步长，确保不重叠
+    const catNodes = (cat.nodes && cat.nodes.length) ? cat.nodes : nodes.filter(n => n.category === catKey)
+    const N = catNodes.length
+    // 根据节点数量动态计算子节点半径和扇形角度范围
+    // 节点多 → 更大的半径 + 更宽的扇形
+    const baseSpread = Math.min(140, N * 9)  // 扇形半角（度）
+    const spreadRad = baseSpread * Math.PI / 180
+    // 半径随节点数增长，保证间距
+    const dynamicR2 = 170 + Math.min(N * 11, 200)
+    const half = (N - 1) / 2
+    // 步长 = 总扇形角度 / (N-1)
+    const step = N > 1 ? (2 * spreadRad) / (N - 1) : 0
+
+    const positionedNodes = catNodes.map((n, j) => {
+      const subAngle = angle + (j - half) * step
+      const nx = chX + dynamicR2 * Math.cos(subAngle)
+      const ny = chY + dynamicR2 * Math.sin(subAngle)
+      const status = n.status === 'completed' ? 'done' : (n.status === 'in_progress' || n.status === 'learning') ? 'learning' : 'locked'
+      return {
+        ...n,
+        name: n.title || n.name,
+        desc: n.description || n.desc || '',
+        fullDesc: n.full_desc || n.fullDesc || n.description || '',
+        points: n.points || [],
+        prerequisites: n.prerequisites || [],
+        aiSuggestion: n.ai_suggestion || n.aiSuggestion || '建议按顺序学习',
+        x: nx, y: ny,
+        _color: meta.color,
+        _chapterTitle: meta.title,
+        _status: status,
       }
-      pos = fallbackMap[catKey] || { x: 200, y: 400 }
-    }
-
-    // ★ 只用后端 category.nodes（已正确排除 parent_id=null 的顶级分类节点），
-    // 避免把顶级节点（category==catKey 但 parent_id==null）也算进来导致大章节状态永远不变成 mastered
-    const catNodes = (cat.nodes && cat.nodes.length > 0)
-      ? cat.nodes
-      : allNodes.filter(n => n.category === catKey)
-
-    // 判断大类状态
-    console.log(`[Debug] 大章节 ${cat.id}: catNodes=${catNodes.length}, statuses=`, catNodes.map(n => `${n.id}:${n.status}`))
-    const allCompleted = catNodes.length > 0 && catNodes.every(n => n.status === 'completed')
-    console.log(`[Debug] 大章节 ${cat.id}: allCompleted=${allCompleted}, catNodes.len=${catNodes.length}`)
-    const hasLearning = catNodes.some(n => n.status === 'in_progress')
-    const hasAvailable = catNodes.some(n => n.status === 'available')
-    const hasRecommended = catNodes.some(n => n.status === 'available' && n.difficulty <= 2)
-
-    let stageStatus = 'locked'
-    if (allCompleted) stageStatus = 'mastered'
-    else if (hasLearning) stageStatus = 'learning'
-    else if (hasAvailable) stageStatus = null
+    })
 
     return {
-      id: cat.id,
-      num: `S${catNodes.length || '?'}`,
-      title: pos.title || cat.title,
-      icon: pos.icon || '',
-      x: pos.x,
-      y: pos.y,
-      status: stageStatus,
-      recommended: hasRecommended,
-      nodes: catNodes.map((n, i) => ({
-        id: n.id,
-        name: n.title,
-        desc: n.description || '',
-        fullDesc: n.full_desc || n.description || '',
-        points: n.points || [],
-        aiSuggestion: n.ai_suggestion || '建议按顺序学习',
-        status: n.status,
-        progress: n.progress || 0,
-        recommended: n.status === 'available' && n.difficulty <= 2,
-      })),
-      description: pos.title || cat.title,
+      id: catKey,
+      num: meta.num,
+      title: meta.title,
+      color: meta.color,
+      description: cat.description || `${meta.title} — 数据结构核心知识点`,
+      x: chX, y: chY,
+      nodes: positionedNodes,
     }
   })
 }
 
-// ═══ 生命周期 ═══
-onMounted(() => {
-  loadMapData()
+// ═══ 所有子节点（扁平，用于查找/统计） ═══
+const allSubNodes = computed(() => {
+  const list = []
+  for (const ch of chapters.value) list.push(...ch.nodes)
+  return list
 })
 
-// ★ keep-alive 激活时重新拉取数据
-onActivated(() => {
-  loadMapData()
+// ═══ 当前可见的子节点（仅已展开的章节的子节点） ═══
+const visibleSubNodes = computed(() => {
+  const list = []
+  for (const ch of chapters.value) {
+    if (expandedSet.value.has(ch.id)) list.push(...ch.nodes)
+  }
+  return list
 })
 
-// ═══ 节点状态颜色映射（三种状态） ═══
-function getNodeStatusClass(node) {
-  if (!node) return 'locked'
-  
-  // 已完成（通过章节测试点亮）
-  if (node.status === 'mastered' || node.status === 'completed') return 'done'
-  // 学习中（有进度 > 0）
-  if (node.status === 'learning' || node.status === 'in_progress') return 'learning'
-  // 未学习（暗）
-  return 'locked'
-}
-
-// 节点的状态颜色
-const nodeStatusColors = computed(() => ({
-  done:      { border: 'rgba(34,197,94,0.45)', bg: 'linear-gradient(145deg, #f0fdf4, #dcfce7)', text: '#16a34a', icon: '#22c55e', shadow: 'rgba(34,197,94,0.18)' },
-  learning: { border: 'rgba(224,122,95,0.45)', bg: 'linear-gradient(145deg, #fff7ed, #ffedd5)', text: '#E07A5F', icon: '#E07A5F', shadow: 'rgba(224,122,95,0.18)' },
-  locked:   { border: 'rgba(150,150,150,0.5)', bg: '#f5f5f5', text: '#555', icon: '#888', shadow: 'transparent', opacity: 0.7 },
-}))
-
-
-// ═══ 展开/选中 ═══
-const expandedStage = ref(null)
-const highlightStage = ref(null)
-const selectedNode = ref(null)
-
-const expandedData = computed(() => {
-  return modeStages.value.find(s => s.id === expandedStage.value) || null
-})
-
-const panelStyle = computed(() => {
-  if (!expandedData.value) return {}
-  const d = expandedData.value
-  const panelW = 440
-  const rightSpace = mapW - d.x - stageRadius - 30
-  if (rightSpace >= panelW) {
-    return {
-      left: (d.x + stageRadius + 24) + 'px',
-      top: Math.max(10, d.y - 180) + 'px',
+// ═══ 可见依赖连线（仅两端都可见时才绘制） ═══
+const depLinesRaw = computed(() => {
+  const lines = []
+  const posMap = {}
+  for (const n of allSubNodes.value) posMap[n.id] = { x: n.x, y: n.y }
+  for (const n of allSubNodes.value) {
+    if (!n.prerequisites || !n.prerequisites.length) continue
+    for (const pid of n.prerequisites) {
+      const from = posMap[pid]
+      const to = posMap[n.id]
+      if (!from || !to) continue
+      const mx = (from.x + to.x) / 2
+      const my = (from.y + to.y) / 2
+      const dx = to.x - from.x
+      const dy = to.y - from.y
+      const len = Math.sqrt(dx * dx + dy * dy) || 1
+      const ox = -dy / len * 35
+      const oy = dx / len * 35
+      lines.push({
+        from: pid,
+        to: n.id,
+        path: `M ${from.x} ${from.y} Q ${mx + ox} ${my + oy} ${to.x} ${to.y}`,
+      })
     }
   }
-  return {
-    left: Math.max(10, d.x - panelW - stageRadius - 24) + 'px',
-    top: Math.max(10, d.y - 180) + 'px',
-  }
+  return lines
 })
 
-function selectStage(stage) {
-  expandedStage.value = expandedStage.value === stage.id ? null : stage.id
+const visibleDepLines = computed(() => {
+  const visIds = new Set(visibleSubNodes.value.map(n => n.id))
+  return depLinesRaw.value.filter(d => visIds.has(d.from) && visIds.has(d.to))
+})
+
+// ═══ 展开/收缩操作 ═══
+function toggleChapter(ch) {
+  const newSet = new Set(expandedSet.value)
+  if (newSet.has(ch.id)) {
+    newSet.delete(ch.id)
+  } else {
+    newSet.add(ch.id)
+  }
+  expandedSet.value = newSet
+  selectChapter(ch)
+
+  // 自动聚焦到展开的章节
+  nextTick(() => focusOnChapter(ch, newSet.has(ch.id)))
 }
 
-function onNodeClick(node) {
-  if (node.status === 'locked') return
-  selectedNode.value = node
+function expandAll() {
+  expandedSet.value = new Set(chapters.value.map(c => c.id))
+  nextTick(() => fitToExpanded())
 }
 
+function collapseAll() {
+  expandedSet.value = new Set()
+  resetView()
+}
+
+function ensureChapterExpanded(node) {
+  // 从 node 的 _chapterTitle 反查 chapter id
+  for (const ch of chapters.value) {
+    if (ch.title === node._chapterTitle && !expandedSet.value.has(ch.id)) {
+      toggleChapter(ch)
+      break
+    }
+  }
+}
+
+/** 将视图平移+缩放到指定章节区域 */
+function focusOnChapter(ch, expanded) {
+  if (!canvasRef.value) return
+  const rect = canvasRef.value.getBoundingClientRect()
+  const viewCx = rect.width / 2
+  const viewCy = rect.height / 2
+
+  // 目标：将章节节点移到视野中央附近
+  // 如果展开了，目标点取章节和子节点之间的中间位置
+  let targetX = ch.x
+  let targetY = ch.y
+  if (expanded && ch.nodes.length) {
+    // 计算该章节所有节点的包围盒中心
+    const xs = [ch.x, ...ch.nodes.map(n => n.x)]
+    const ys = [ch.y, ...ch.nodes.map(n => n.y)]
+    targetX = (Math.min(...xs) + Math.max(...xs)) / 2
+    targetY = (Math.min(...ys) + Math.max(...ys)) / 2
+  }
+
+  // 当前画布中心在屏幕坐标中的位置
+  const currentScreenX = cx * scale.value + panX.value
+  const currentScreenY = cy * scale.value + panY.value
+
+  // 目标在屏幕坐标中应该的位置
+  const targetScreenX = targetX * scale.value + panX.value
+  const targetScreenY = targetY * scale.value + panY.value
+
+  // 需要的偏移量
+  const dx = viewCx - targetScreenX
+  const dy = viewCy - targetScreenY
+
+  // 如果展开了且节点较多，适当缩小
+  const targetScale = expanded ? Math.max(0.38, 0.65 - ch.nodes.length * 0.018) : 0.65
+
+  // 动画过渡
+  const startPanX = panX.value
+  const startPanY = panY.value
+  const startScale = scale.value
+  const endPanX = panX.value + dx
+  const endPanY = panY.value + dy
+  const steps = 15
+  let step = 0
+  const tick = () => {
+    step++
+    const t = step / steps
+    const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+    scale.value = startScale + (targetScale - startScale) * ease
+    panX.value = startPanX + (endPanX - startPanX) * ease
+    panY.value = startPanY + (endPanY - startPanY) * ease
+    if (step < steps) requestAnimationFrame(tick)
+  }
+  tick()
+}
+
+// ═══ 选中状态 ═══
+const selectedType = ref(null)
+const selectedId = ref(null)
+const hoverId = ref(null)
+
+const selectedData = computed(() => {
+  if (selectedType.value === 'chapter') return chapters.value.find(c => c.id === selectedId.value)
+  if (selectedType.value === 'sub') return allSubNodes.value.find(n => n.id === selectedId.value)
+  return null
+})
+
+function selectCenter() {
+  selectedType.value = 'center'
+  selectedId.value = null
+}
+function selectChapter(ch) {
+  selectedType.value = 'chapter'
+  selectedId.value = ch.id
+}
+function selectSubNode(n) {
+  selectedType.value = 'sub'
+  selectedId.value = n.id
+}
+function closePanel() {
+  selectedType.value = null
+  selectedId.value = null
+}
+function jumpToNode(id) {
+  const n = allSubNodes.value.find(x => x.id === id)
+  if (n) {
+    selectSubNode(n)
+    // 确保所属章节展开
+    ensureChapterExpanded(n)
+  }
+}
+
+// ═══ 高亮链路 ═══
+const highlightSet = computed(() => {
+  const id = hoverId.value || (selectedType.value === 'sub' ? selectedId.value : null)
+  if (!id) return new Set()
+  const set = new Set([id])
+  const visitUp = (nid) => {
+    const n = allSubNodes.value.find(x => x.id === nid)
+    if (!n || !n.prerequisites) return
+    for (const pid of n.prerequisites) {
+      if (!set.has(pid)) { set.add(pid); visitUp(pid) }
+    }
+  }
+  const visitDown = (nid) => {
+    for (const n of allSubNodes.value) {
+      if (n.prerequisites && n.prerequisites.includes(nid) && !set.has(n.id)) {
+        set.add(n.id); visitDown(n.id)
+      }
+    }
+  }
+  visitUp(id)
+  visitDown(id)
+  return set
+})
+
+function isHighlighted(id) {
+  return highlightSet.value.has(id) && hoverId.value !== null
+}
+function isDimmed(id) {
+  if (!hoverId.value) return false
+  return !highlightSet.value.has(id)
+}
+function isLineHighlighted(line) {
+  if (!hoverId.value && selectedType.value !== 'sub') return false
+  const id = hoverId.value || selectedId.value
+  return line.from === id || line.to === id ||
+    (highlightSet.value.has(line.from) && highlightSet.value.has(line.to))
+}
+
+// ═══ 状态辅助 ═══
+function nodeStatusClass(n) {
+  return n._status || 'locked'
+}
+function chapterStatusClass(ch) {
+  const done = chapterCompleted(ch)
+  const learning = ch.nodes.some(n => n._status === 'learning')
+  if (done === ch.nodes.length && ch.nodes.length > 0) return 'done'
+  if (learning) return 'learning'
+  return 'locked'
+}
+function chapterCompleted(ch) {
+  return ch.nodes.filter(n => n._status === 'done').length
+}
+function chapterProgress(ch) {
+  if (!ch.nodes.length) return 0
+  return Math.round(chapterCompleted(ch) / ch.nodes.length * 100)
+}
 function statusLabel(s) {
-  if (s === 'mastered' || s === 'completed') return '已完结'
-  if (s === 'learning' || s === 'in_progress') return '学习中'
-  return '可学习'
+  if (s === 'done') return '已掌握'
+  if (s === 'learning') return '学习中'
+  return '未学习'
+}
+function nodeName(id) {
+  const n = allSubNodes.value.find(x => x.id === id)
+  return n ? n.name : id
+}
+function dependentsOf(id) {
+  const result = []
+  for (const n of allSubNodes.value) {
+    if (n.prerequisites && n.prerequisites.includes(id)) result.push(n.id)
+  }
+  return result
 }
 
-function goToExam(node) {
-  selectedNode.value = null
-  router.push(`/app/exam/${node.id}`)
-}
+// ═══ 统计 ═══
+const totalCompleted = computed(() => allSubNodes.value.filter(n => n._status === 'done').length)
+const totalLearning = computed(() => allSubNodes.value.filter(n => n._status === 'learning').length)
+const completionRate = computed(() => {
+  if (!allSubNodes.value.length) return 0
+  return Math.round(totalCompleted.value / allSubNodes.value.length * 100)
+})
 
+// ═══ 学习入口 ═══
 async function startLearn(node) {
-  selectedNode.value = null
+  closePanel()
   try {
     await knowledgeApi.startNode(node.id)
-    // 刷新地图数据
     await loadMapData()
   } catch (e) {
     console.warn('[Map] 开始学习失败:', e)
   }
   router.push(`/app/learn/${node.id}`)
 }
+function goToExam(node) {
+  closePanel()
+  router.push(`/app/exam/${node.id}`)
+}
 
+// ═══ 生命周期 ═══
+onMounted(() => { loadMapData() })
+onActivated(() => { loadMapData() })
 </script>
 
 <style lang="scss" scoped>
 .map-view {
-  height: 100%;
+  height: calc(100vh - var(--topnav-height));
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #f7f5f2;
+  background: #f8f9fc;
+  position: relative;
 }
 
 /* ═══ 顶部栏 ═══ */
@@ -574,849 +763,356 @@ async function startLearn(node) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 28px;
-  border-bottom: 1px solid rgba(0,0,0,0.08);
-  z-index: 10;
+  padding: 10px 24px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  background: rgba(255,255,255,0.92);
   backdrop-filter: blur(12px);
-  background: rgba(255,255,255,0.85);
+  z-index: 20;
 }
-
 .topbar-left {
   display: flex;
   align-items: baseline;
   gap: 12px;
-  .map-title {
-    font-size: 22px;
-    font-weight: 700;
-    margin: 0;
-    color: #333;
-    display: flex;
-    align-items: center;
-    letter-spacing: -0.5px;
-  }
-  .map-subtitle {
-    font-size: 12px;
-    color: var(--text-tertiary);
-    margin: 0;
-  }
+  .map-title { font-size: 19px; font-weight: 700; margin: 0; color: #1e293b; display: flex; align-items: center; }
+  .map-subtitle { font-size: 12px; color: #94a3b8; margin: 0; }
 }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
 
-.topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.legend {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-
-.legend-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  &.done { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.4); }
-  &.active { background: #E07A5F; }
-  &.rec { background: linear-gradient(135deg, var(--color-primary-light), #a78bfa); }
-  &.lock { background: #d4d4d4; }
-  &.learning-pulse {
-    background: #E07A5F;
-    animation: legendPulse 2s infinite;
-    box-shadow: 0 0 8px rgba(224,122,95,0.5);
-  }
-}
-@keyframes legendPulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.4); opacity: 0.7; }
-}
-
-/* 模式指示器 */
-.mode-indicator {
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-/* ═══ 加载状态 ═══ */
-.map-loading {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  z-index: 10;
-  background: rgba(247,245,242,0.8);
-}
-.map-loading-spinner {
-  width: 36px; height: 36px;
-  border: 3px solid rgba(59,130,246,0.15);
-  border-top-color: #3b82f6;
-  border-radius: 50%;
-  animation: mapSpin 0.8s linear infinite;
-}
-@keyframes mapSpin {
-  to { transform: rotate(360deg); }
-}
-.map-loading-text {
-  font-size: 14px;
-  color: var(--text-tertiary);
-  margin: 0;
-}
-
-/* ═══ 空状态 ═══ */
-.map-empty {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  z-index: 10;
-  background: rgba(247,245,242,0.9);
-}
-.map-empty h3 {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-tertiary);
-  margin: 0;
-}
-.map-empty p {
-  font-size: 13px;
-  color: #bbb;
-  margin: 0;
-  max-width: 320px;
-  text-align: center;
-  line-height: 1.5;
-}
-.map-empty-btn {
-  margin-top: 8px;
-  padding: 8px 24px;
-  border: 1px solid rgba(59,130,246,0.3);
-  border-radius: 8px;
-  background: rgba(59,130,246,0.08);
-  color: #3b82f6;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
+.action-btn {
+  padding: 5px 12px; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px;
+  background: #fff; color: #475569; font-size: 12px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; gap: 4px;
   transition: all 0.2s;
+  &:hover { border-color: #3b82f6; color: #3b82f6; background: rgba(59,130,246,0.04); }
 }
-.map-empty-btn:hover {
-  background: rgba(59,130,246,0.15);
-  border-color: rgba(59,130,246,0.5);
+.legend {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: #64748b;
+  span { margin-right: 1px; }
+}
+.legend-line {
+  width: 20px; height: 0; border-top: 2px solid #64748b; display: inline-block;
+  &.solid { border-top-style: solid; border-color: #3b82f6; }
+  &.dashed { border-top-style: dashed; border-color: #94a3b8; }
+}
+.legend-dot {
+  width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+  &.done { background: #22c55e; }
+  &.learning { background: #f59e0b; }
+}
+.toggle-dep-btn {
+  padding: 5px 12px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px;
+  background: #fff; color: #64748b; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s;
+  &:hover { border-color: #3b82f6; color: #3b82f6; }
+  &.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
 }
 
 /* ═══ 画布 ═══ */
 .map-canvas {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  cursor: grab;
+  &:active { cursor: grabbing; }
   background:
-    radial-gradient(circle at 28% 18%, rgba(224,122,95,0.06) 0%, transparent 50%),
-    radial-gradient(circle at 70% 48%, rgba(139,92,246,0.05) 0%, transparent 50%),
-    #f7f5f2;
+    radial-gradient(circle at 50% 45%, rgba(59,130,246,0.03) 0%, transparent 55%),
+    #f8f9fc;
 }
-
-.map-inner {
-  position: relative;
-  width: 1100px;
-  height: 800px;
-}
-
-/* ═══ 地形层 ═══ */
-.map-terrain {
+.map-stage {
   position: absolute;
-  top: 0; left: 0;
-  pointer-events: none;
-  z-index: 0;
+  left: 50%; top: 50%;
+  transition: transform 0.05s linear;
 }
-
-/* ═══ 路径层 ═══ */
-.map-roads {
+.map-bg, .map-lines {
   position: absolute;
-  top: 0; left: 0;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.map-branches {
-  position: absolute;
-  top: 0; left: 0;
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* ═══ 城市节点 ═══ */
-.map-city {
-  position: absolute;
-  z-index: 3;
-  cursor: pointer;
-  transition: filter 0.3s;
-
-  &:hover { filter: drop-shadow(0 4px 16px rgba(0,0,0,0.12)); }
-}
-
-.city-shadow {
-  position: absolute;
-  inset: 4px;
-  border-radius: 50%;
-  background: transparent;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+  left: 0; top: 0;
   pointer-events: none;
 }
+.map-bg { z-index: 0; }
+.map-lines { z-index: 1; }
 
-.city-outer-ring {
+/* ═══ 中心枢纽 ═══ */
+.node-center {
   position: absolute;
-  inset: -8px;
-  border-radius: 50%;
-  border: 2px solid rgba(0,0,0,0.05);
-  transition: all 0.3s;
-  pointer-events: none;
-}
-
-.city-inner {
-  width: 128px;
-  height: 128px;
-  border-radius: 50%;
-  background: var(--bg-color);
-  border: 1.5px solid rgba(0,0,0,0.08);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-
-  &::after {
-    content: '';
-    position: absolute;
-    width: 58%;
-    height: 58%;
-    border-radius: 50%;
-    border: 1px dashed rgba(0,0,0,0.06);
-    pointer-events: none;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-  }
-}
-
-.city-icon {
-  color: var(--text-tertiary);
-  transition: all 0.3s;
-}
-
-.city-num {
-  font-size: 11px;
-  font-weight: 700;
-  color: #bbb;
-  letter-spacing: 0.08em;
-  margin-top: -2px;
-}
-
-.city-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: #555;
-  letter-spacing: 0.03em;
-}
-
-.city-count {
-  font-size: 10px;
-  color: #bbb;
-  margin-top: 1px;
-}
-
-/* ★ 已完成/学习中 状态标语 */
-.city-mastered-label {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 8px;
-  border-radius: 10px;
-  margin-top: 2px;
-  line-height: 1.4;
-  &.learning-label {
-    background: rgba(224,122,95,0.12);
-    color: #E07A5F;
-  }
-}
-.map-city.status-done .city-mastered-label {
-  background: rgba(34,197,94,0.15);
-  color: #15803d;
-}
-
-.city-badge {
-  position: absolute;
-  top: -2px;
-  right: 8px;
-  min-width: 22px;
-  height: 22px;
-  border-radius: 11px;
-  font-size: 10px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 6px;
-
-  &.done {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    color: #fff;
-    box-shadow: 0 2px 12px rgba(34,197,94,0.5);
-    animation: badgePopIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
-    min-width: 24px;
-    height: 24px;
-    svg { width: 14px; height: 14px; }
-  }
-  &.active {
-    background: #E07A5F; color: #fff;
-    animation: pulse-dot 2s infinite;
-  }
-  &.learning-pulse {
-    background: linear-gradient(135deg, #E07A5F, #f97316);
-    color: #fff;
-    box-shadow: 0 2px 8px rgba(224,122,95,0.45);
-    animation: pulse-dot 2s infinite;
-  }
-  &.locked {
-    background: #b0b0b0;
-    color: var(--text-secondary);
-    font-size: 9px;
-  }
-  &.rec { background: linear-gradient(135deg, var(--color-primary-light), #a78bfa); color: #fff; font-size: 9px; }
-}
-
-/* 考试频率标签 */
-.exam-freq-badge {
-  position: absolute;
-  bottom: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 1px 8px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #f97316, #fb923c);
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
-  white-space: nowrap;
-  z-index: 2;
-}
-
-@keyframes pulse-dot {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(224,122,95,0.5); }
-  50% { box-shadow: 0 0 0 8px rgba(224,122,95,0); }
-}
-
-@keyframes badgePopIn {
-  0%   { transform: scale(0); opacity: 0; }
-  60%  { transform: scale(1.25); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-/* 已掌握 - 基础样式(优先级较低) */
-.map-city.is-mastered {
-  .city-outer-ring { border-color: rgba(34,197,94,0.4); box-shadow: 0 0 20px rgba(34,197,94,0.12); }
-  .city-inner { border-color: rgba(34,197,94,0.35); background: linear-gradient(145deg, #f0fdf4, #fff); }
-  .city-name { color: #16a34a; }
-  .city-icon { color: #4ade80; }
-}
-
-/* 学习中 */
-.map-city.is-active {
-  .city-outer-ring { border-color: rgba(224,122,95,0.35); box-shadow: 0 0 20px rgba(224,122,95,0.1); }
-  .city-inner { border-color: rgba(224,122,95,0.35); background: linear-gradient(145deg, #fff7ed, #fff); }
-  .city-name { color: #E07A5F; }
-  .city-icon { color: #E07A5F; }
-}
-
-/* ═══ 三种状态通用样式（优先级高于 is-mastered/is-active） ═══ */
-.map-city.status-done {
-  .city-shadow { 
-    box-shadow: 0 6px 32px rgba(34,197,94,0.25), 0 2px 8px rgba(34,197,94,0.15) !important; 
-  }
-  .city-outer-ring {
-    border-color: rgba(34,197,94,0.55) !important;
-    border-width: 2.5px !important;
-    box-shadow: 0 0 30px rgba(34,197,94,0.2), inset 0 0 25px rgba(34,197,94,0.06);
-    animation: glowPulseDone 2.5s ease-in-out infinite;
-  }
-  .city-inner {
-    border-color: rgba(34,197,94,0.5);
-    border-width: 2px;
-    background: linear-gradient(145deg, #ecfdf5, #d1fae5) !important;
-    box-shadow: inset 0 3px 16px rgba(34,197,94,0.12), 0 0 0 2px rgba(34,197,94,0.08);
-  }
-  &::after { border-color: rgba(34,197,94,0.35); }
-  .city-name { color: #15803d; font-weight: 800; text-shadow: 0 0 8px rgba(34,197,94,0.15); }
-  .city-icon { color: #22c55e; filter: drop-shadow(0 0 6px rgba(34,197,94,0.5)); }
-  .city-num { color: #22c55e; font-weight: 800; }
-  .city-count { color: #4ade80; font-weight: 600; }
-}
-@keyframes glowPulseDone {
-  0%, 100% { box-shadow: 0 0 24px rgba(34,197,94,0.15); }
-  50% { box-shadow: 0 0 36px rgba(34,197,94,0.25); }
-}
-
-.map-city.status-learning {
-  .city-outer-ring {
-    border-color: rgba(224,122,95,0.45);
-    box-shadow: 0 0 24px rgba(224,122,95,0.15);
-  }
-  .city-inner {
-    border-color: rgba(224,122,95,0.4);
-    background: linear-gradient(145deg, #fff7ed, #fffafcc);
-  }
-  &::after { border-color: rgba(224,122,95,0.25); }
-  .city-name { color: #D2654B; }
-  .city-icon { color: #E07A5F; }
-}
-
-.map-city.status-locked {
-  .city-inner {
-    background: #f0f0f0 !important;
-    border-color: rgba(0,0,0,0.15) !important;
-    box-shadow: none !important;
-    filter: saturate(0.7) brightness(0.95);
-  }
-  .city-icon { color: var(--text-tertiary) !important; }
-  .city-name { color: #555 !important; font-weight: 600; }
-  .city-count { color: #aaa !important; }
-}
-
-/* hover */
-.map-city:hover:not(.is-expanded) {
-  .city-inner {
-    transform: scale(1.08);
-    border-color: rgba(0,0,0,0.15);
-    box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-  }
-  .city-outer-ring {
-    border-color: rgba(0,0,0,0.1);
-    transform: scale(1.15);
-  }
-  .city-name { color: #333; }
-}
-
-/* 高亮 */
-.map-city.is-highlight:not(.is-expanded) {
-  .city-outer-ring { border-color: rgba(139,92,246,0.35); transform: scale(1.12); box-shadow: 0 0 24px rgba(139,92,246,0.18); }
-}
-
-/* 展开态 */
-.map-city.is-expanded {
-  .city-outer-ring {
-    border-color: rgba(139,92,246,0.5);
-    box-shadow: 0 0 28px rgba(139,92,246,0.22);
-    transform: scale(1.15);
-  }
-  .city-inner {
-    border-color: rgba(139,92,246,0.45);
-    background: linear-gradient(145deg, #f5f3ff, #fff);
-    box-shadow: 0 0 40px rgba(139,92,246,0.18);
-  }
-  .city-name { color: var(--color-primary); }
-  .city-icon { color: rgba(139,92,246,0.85); }
-}
-
-/* ★ 展开态 + 已完成：绿色优先于紫色（3级选择器 > 2级，自动胜出） */
-.map-city.is-expanded.status-done {
-  .city-outer-ring {
-    border-color: rgba(34,197,94,0.55);
-    box-shadow: 0 0 32px rgba(34,197,94,0.24);
-    transform: scale(1.15);
-    animation: glowPulseDone 2.5s ease-in-out infinite;
-  }
-  .city-inner {
-    border-color: rgba(34,197,94,0.5);
-    background: linear-gradient(145deg, #ecfdf5, #d1fae5) !important;
-    box-shadow: 0 0 40px rgba(34,197,94,0.2), inset 0 3px 16px rgba(34,197,94,0.1);
-  }
-  .city-name { color: #15803d; font-weight: 800; }
-  .city-icon { color: #22c55e; filter: drop-shadow(0 0 6px rgba(34,197,94,0.5)); }
-  .city-count, .city-num { color: #22c55e; }
-}
-
-/* ═══ 展开面板 ═══ */
-.sub-panel {
-  position: absolute;
+  transform: translate(-50%, -50%);
   z-index: 5;
-  width: 440px;
-  max-height: 520px;
-  background: rgba(255,255,255,0.97);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(0,0,0,0.08);
-  border-radius: 20px;
-  box-shadow: 0 16px 48px rgba(0,0,0,0.12);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  cursor: pointer;
+  .center-inner {
+    width: 130px; height: 130px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    box-shadow: 0 8px 32px rgba(59,130,246,0.35), inset 0 2px 12px rgba(255,255,255,0.2);
+    border: 3px solid rgba(255,255,255,0.5);
+    transition: all 0.3s;
+  }
+  .center-title { color: #fff; font-size: 17px; font-weight: 800; letter-spacing: 1px; }
+  .center-sub { color: rgba(255,255,255,0.8); font-size: 11px; margin-top: 4px; }
+  &:hover .center-inner { transform: scale(1.06); box-shadow: 0 12px 40px rgba(59,130,246,0.45); }
+  &.selected .center-inner { box-shadow: 0 0 0 4px rgba(59,130,246,0.3), 0 12px 40px rgba(59,130,246,0.5); }
 }
 
-.panel-header {
-  padding: 18px 20px 14px;
-  border-bottom: 1px solid rgba(0,0,0,0.06);
-  flex-shrink: 0;
-  position: relative;
-}
-
-.panel-title-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.panel-stage-num {
-  width: 28px; height: 28px;
-  border-radius: 8px;
-  background: rgba(139,92,246,0.12);
-  color: var(--color-primary);
-  font-size: 12px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.panel-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #333;
-  margin: 0;
-}
-
-.panel-desc {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  margin: 8px 0 0;
-  line-height: 1.5;
-  padding-right: 50px;
-}
-
-.panel-close {
+/* ═══ 章节节点 ═══ */
+.node-chapter {
   position: absolute;
-  top: 14px; right: 14px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  border: 1px solid rgba(0,0,0,0.1);
-  border-radius: 8px;
-  background: #f9f8f6;
-  color: var(--text-tertiary);
-  font-size: 11px;
+  transform: translate(-50%, -50%);
+  z-index: 4;
   cursor: pointer;
-  transition: all 0.15s;
-  &:hover { background: #f0eee9; color: #555; border-color: rgba(0,0,0,0.18); }
-}
-
-.panel-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-
-  &::-webkit-scrollbar { width: 4px; }
-  &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 2px; }
-}
-
-.sub-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: #faf9f7;
-  border: 1px solid rgba(0,0,0,0.05);
-  cursor: pointer;
-  transition: all 0.25s;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 2px;
+  transition: opacity 0.25s, filter 0.25s;
+  .chapter-circle {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2.5px solid var(--ch-color);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    position: relative;
+    transition: all 0.3s;
+  }
+  .chapter-num { font-size: 18px; font-weight: 800; color: var(--ch-color); }
+  .chapter-toggle-icon {
+    position: absolute;
+    bottom: -2px; right: -2px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--ch-color);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    svg { transform: rotate(-90deg); }
+    &.open { svg { transform: rotate(0deg); } }
+  }
+  .chapter-name { font-size: 13px; font-weight: 700; color: #334155; }
+  .chapter-count { font-size: 10px; color: #94a3b8; }
+  .chapter-progress { font-size: 10px; font-weight: 700; color: var(--ch-color); }
 
   &:hover {
-    background: #f5f3f0;
-    border-color: rgba(0,0,0,0.12);
-    transform: translateX(4px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    .chapter-circle { transform: scale(1.08); box-shadow: 0 6px 24px rgba(0,0,0,0.12); }
   }
-
-  &.done {
-    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-    border-color: rgba(34,197,94,0.35);
-    box-shadow: 0 2px 8px rgba(34,197,94,0.08);
-    &:hover { background: #bbf7d0; border-color: rgba(34,197,94,0.5); }
-  }
-
-  &.learning {
-    background: linear-gradient(135deg, #fff7ed, #ffedd5);
-    border-color: rgba(224,122,95,0.3);
-    &:hover { background: #ffecd5; border-color: rgba(224,122,95,0.45); }
-  }
-
-  &.locked {
-    opacity: 0.75;
-    cursor: not-allowed;
-    background: #f2f2f2 !important;
-    border-color: rgba(0,0,0,0.08) !important;
-    &:hover { transform: none; background: #f2f2f2; }
-    
-    .sub-item-index { background: #ddd; color: #777; }
-    .sub-item-name { color: var(--text-secondary) !important; }
-    .sub-item-desc { color: #aaa !important; }
-  }
+  &.selected .chapter-circle { box-shadow: 0 0 0 4px rgba(99,102,241,0.25), 0 6px 24px rgba(0,0,0,0.12); }
+  &.expanded .chapter-circle { border-style: dashed; border-width: 2px; }
+  &.done .chapter-circle { background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-color: #22c55e; border-style: solid; .chapter-num { color: #16a34a; } }
+  &.learning .chapter-circle { background: linear-gradient(135deg, #fffbeb, #fef3c7); border-color: #f59e0b; border-style: solid; .chapter-num { color: #d97706; } }
+  &.dim { opacity: 0.25; }
 }
 
-.sub-item-index {
-  width: 28px; height: 28px;
-  border-radius: 8px;
-  background: rgba(0,0,0,0.04);
-  color: #bbb;
-  font-size: 11px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  .done & { background: #dcfce7; color: #16a34a; }
-  .learning & { background: var(--bg-color)7ed; color: #E07A5F; }
-}
-
-/* 考试频率标签 */
-.exam-freq-tag {
-  padding: 1px 7px;
-  border-radius: 5px;
-  font-size: 9px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #f97316, #fb923c);
-  color: #fff;
-  white-space: nowrap;
-  margin-left: 4px;
-}
-
-.sub-item-body { flex: 1; min-width: 0; }
-
-.sub-item-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 3px;
-}
-
-.sub-item-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #444;
-}
-
-.sub-item-rec {
-  font-size: 10px; font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 6px;
-  background: rgba(139,92,246,0.12);
-  color: var(--color-primary);
-}
-
-.sub-item-status {
-  font-size: 10px; padding: 1px 6px; border-radius: 6px;
-  &.done { background: rgba(34,197,94,0.12); color: #16a34a; }
-  &.active { background: rgba(224,122,95,0.12); color: #E07A5F; }
-  &.locked { background: rgba(0,0,0,0.08); color: #888; }
-}
-
-.sub-item-desc {
-  font-size: 11px;
-  color: #aaa;
-  margin: 0;
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sub-item-bar {
-  height: 3px;
-  background: rgba(0,0,0,0.06);
-  border-radius: 2px;
-  margin-top: 6px;
-}
-
-.sub-item-fill {
-  height: 100%;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #E07A5F, #f08a5d);
-  transition: width 0.6s ease;
-}
-
-.sub-item-arrow {
-  color: #ddd;
-  flex-shrink: 0;
-  transition: all 0.2s;
-  .sub-item:hover & { color: var(--text-tertiary); transform: translateX(3px); }
-  .sub-item.locked:hover & { transform: none; }
-}
-
-/* ═══ 指南针 ═══ */
-.map-compass {
+/* ═══ 子节点 ═══ */
+.node-sub {
   position: absolute;
-  bottom: 24px; left: 24px;
-  z-index: 2;
-  pointer-events: none;
-  opacity: 0.45;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  cursor: pointer;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 3px;
+  opacity: 0;
+  animation: subFadeIn 0.3s ease forwards;
+  transition: opacity 0.25s, transform 0.2s;
+
+  .sub-dot {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--ch-color);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+    transition: all 0.25s;
+  }
+  .sub-label {
+    font-size: 11px; font-weight: 600; color: #475569;
+    white-space: nowrap;
+    text-shadow: 0 1px 2px rgba(255,255,255,0.8);
+    max-width: 80px;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .sub-pulse {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #f59e0b;
+    animation: subPulse 1.8s infinite;
+  }
+  &:hover { z-index: 6; transform: translate(-50%, -50%) scale(1.18); .sub-dot { box-shadow: 0 4px 16px rgba(0,0,0,0.14); } }
+  &.selected { z-index: 6; .sub-dot { box-shadow: 0 0 0 3px rgba(99,102,241,0.3), 0 4px 16px rgba(0,0,0,0.14); } }
+  &.done .sub-dot { background: #22c55e; border-color: #16a34a; .sub-label { color: #15803d; } }
+  &.learning .sub-dot { background: #fef3c7; border-color: #f59e0b; .sub-label { color: #b45309; } }
+  &.locked .sub-dot { background: #f1f5f9; border-color: #cbd5e1; .sub-label { color: #94a3b8; } }
+  &.hl .sub-dot { box-shadow: 0 0 0 3px rgba(239,68,68,0.3), 0 4px 16px rgba(0,0,0,0.12); }
+  &.dim { opacity: 0.2 !important; }
+}
+
+@keyframes subFadeIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes subPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(245,158,11,0); }
+}
+
+/* ═══ 加载/空状态 ═══ */
+.map-loading, .map-empty {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px;
+  background: rgba(248,249,252,0.9);
+}
+.map-loading-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(59,130,246,0.15);
+  border-top-color: #3b82f6; border-radius: 50%;
+  animation: mapSpin 0.8s linear infinite;
+}
+@keyframes mapSpin { to { transform: rotate(360deg); } }
+.map-empty h3 { font-size: 18px; color: #64748b; margin: 0; }
+.map-empty p { font-size: 13px; color: #cbd5e1; margin: 0; }
+.map-empty-btn {
+  padding: 8px 24px; border: 1px solid rgba(59,130,246,0.3); border-radius: 8px;
+  background: rgba(59,130,246,0.08); color: #3b82f6; font-size: 13px; font-weight: 600; cursor: pointer;
+  &:hover { background: rgba(59,130,246,0.15); }
+}
+
+/* ═══ 缩放控件 ═══ */
+.zoom-controls {
+  position: absolute;
+  bottom: 20px; right: 20px;
+  z-index: 15;
+  display: flex; flex-direction: column; gap: 4px;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  button {
+    width: 34px; height: 34px; border: none; border-radius: 8px;
+    background: transparent; color: #475569; font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    &:hover { background: rgba(59,130,246,0.1); color: #3b82f6; }
+  }
+  .zoom-level { font-size: 10px; color: #94a3b8; text-align: center; padding: 2px 0; font-weight: 600; }
+}
+
+/* ═══ 右侧详情面板 ═══ */
+.detail-panel {
+  position: absolute;
+  top: 56px; right: 0; bottom: 0;
+  width: 380px;
+  z-index: 30;
+  background: rgba(255,255,255,0.98);
+  backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(0,0,0,0.06);
+  box-shadow: -8px 0 32px rgba(0,0,0,0.06);
+  padding: 24px 22px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 16px;
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 2px; }
+}
+.detail-close {
+  position: absolute; top: 16px; right: 16px;
+  width: 28px; height: 28px; border: none; border-radius: 8px;
+  background: rgba(0,0,0,0.04); color: #94a3b8; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  &:hover { background: rgba(0,0,0,0.08); color: #475569; }
+}
+.dp-header { display: flex; flex-direction: column; gap: 6px; }
+.dp-badge {
+  align-self: flex-start;
+  padding: 3px 10px; border-radius: 8px;
+  font-size: 11px; font-weight: 700;
+  background: rgba(59,130,246,0.1); color: #3b82f6;
+  &.center { background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(99,102,241,0.15)); color: #4f46e5; }
+}
+.dp-title { font-size: 22px; font-weight: 800; color: #1e293b; margin: 0; line-height: 1.2; }
+.dp-desc { font-size: 13px; color: #64748b; line-height: 1.6; margin: 0; }
+.dp-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  .stat-item {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 10px 4px; border-radius: 10px; background: rgba(0,0,0,0.02);
+  }
+  .stat-num { font-size: 18px; font-weight: 800; color: #1e293b; }
+  .stat-label { font-size: 10px; color: #94a3b8; }
+}
+.dp-section {
+  h4 {
+    font-size: 11px; color: #94a3b8; text-transform: uppercase;
+    letter-spacing: 0.06em; margin: 0 0 10px; font-weight: 700;
+  }
+}
+.chapter-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: 10px; cursor: pointer;
+  transition: background 0.15s;
+  margin-bottom: 4px;
+  &:hover { background: rgba(59,130,246,0.06); }
+  .chapter-row-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .chapter-row-name { flex: 1; font-size: 13px; font-weight: 600; color: #334155; }
+  .chapter-row-count { font-size: 11px; color: #94a3b8; font-weight: 600; }
+  .chapter-row-arrow {
+    font-size: 14px; color: #cbd5e1; transition: transform 0.3s;
+    &.open { transform: rotate(90deg); color: #3b82f6; }
+  }
+}
+.dp-progress-bar {
+  height: 6px; border-radius: 3px; background: rgba(0,0,0,0.06); overflow: hidden;
+  .dp-progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+}
+.sub-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 10px; border-radius: 10px; cursor: pointer;
+  transition: all 0.15s; margin-bottom: 4px;
+  border: 1px solid transparent;
+  &:hover { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.05); }
+  .sub-row-idx {
+    width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; background: rgba(0,0,0,0.04); color: #94a3b8;
+  }
+  .sub-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .sub-row-name { font-size: 13px; font-weight: 600; color: #334155; }
+  .sub-row-desc { font-size: 11px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub-row-status { font-size: 10px; font-weight: 600; color: #94a3b8; flex-shrink: 0; }
+  &.done { .sub-row-idx { background: #dcfce7; color: #16a34a; } .sub-row-status { color: #16a34a; } }
+  &.learning { .sub-row-idx { background: #fef3c7; color: #d97706; } .sub-row-status { color: #d97706; } }
+}
+.dep-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dep-chip {
+  padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  background: rgba(239,68,68,0.08); color: #dc2626; cursor: pointer;
+  border: 1px solid rgba(239,68,68,0.15);
+  transition: all 0.15s;
+  &:hover { background: rgba(239,68,68,0.15); }
+  &.subsequent { background: rgba(59,130,246,0.08); color: #2563eb; border-color: rgba(59,130,246,0.15); &:hover { background: rgba(59,130,246,0.15); } }
+}
+.point-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.point-tag {
+  padding: 4px 10px; border-radius: 6px; font-size: 12px;
+  background: rgba(0,0,0,0.04); color: #64748b; border: 1px solid rgba(0,0,0,0.05);
+}
+.dp-tip {
+  font-size: 12px; color: #64748b; line-height: 1.6;
+  padding: 12px 14px; background: rgba(99,102,241,0.05);
+  border-radius: 10px; border-left: 3px solid #6366f1;
+}
+.dp-actions { display: flex; gap: 10px; margin-top: auto; padding-top: 8px; }
+.btn-primary {
+  flex: 1; padding: 11px 16px; border: none; border-radius: 10px;
+  background: linear-gradient(135deg, #3b82f6, #6366f1); color: #fff;
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+  &:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(59,130,246,0.4); }
+}
+.btn-secondary {
+  padding: 11px 16px; border: 1px solid rgba(99,102,241,0.3); border-radius: 10px;
+  background: rgba(99,102,241,0.06); color: #6366f1;
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+  &:hover { background: rgba(99,102,241,0.12); }
 }
 
 /* ═══ 面板动画 ═══ */
-.panel-zoom-enter-active { transition: all 0.35s cubic-bezier(0.16,1,0.3,1); }
-.panel-zoom-leave-active { transition: all 0.25s cubic-bezier(0.4,0,0.2,1); }
-.panel-zoom-enter-from { opacity: 0; transform: scale(0.85) translateY(-12px); }
-.panel-zoom-leave-to { opacity: 0; transform: scale(0.9); }
-
-/* ═══ 底部详情浮层 ═══ */
-.detail-bar {
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  z-index: 100;
-  background: rgba(255,255,255,0.97);
-  backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(0,0,0,0.08);
-  padding: 18px 28px;
-  box-shadow: 0 -4px 24px rgba(0,0,0,0.06);
-}
-
-.detail-bar-inner {
-  max-width: 1100px;
-  margin: 0 auto;
-  display: flex;
-  align-items: flex-start;
-  gap: 28px;
-}
-
-.detail-close {
-  position: absolute;
-  top: 10px; right: 18px;
-  width: 30px; height: 30px;
-  border: none;
-  background: rgba(0,0,0,0.04);
-  border-radius: 8px;
-  color: #aaa;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-  &:hover { background: rgba(0,0,0,0.08); color: #555; }
-}
-
-.detail-left { flex: 2; min-width: 0; }
-
-.detail-tag {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  margin-bottom: 6px;
-  &.mastered { background: rgba(34,197,94,0.12); color: #16a34a; }
-  &.learning { background: rgba(224,122,95,0.15); color: #E07A5F; }
-  &.locked   { background: rgba(0,0,0,0.07); color: #777; }
-}
-
-.detail-name {
-  font-size: 19px;
-  font-weight: 700;
-  margin: 0 0 4px;
-  color: #333;
-}
-
-.detail-desc {
-  font-size: 13px;
-  color: #888;
-  line-height: 1.5;
-  margin: 0;
-}
-
-.detail-mid {
-  flex: 1.5; min-width: 0;
-  h4 {
-    font-size: 11px;
-    color: #bbb;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin: 0 0 8px;
-  }
-}
-
-.detail-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-
-.detail-chip {
-  padding: 3px 10px;
-  border-radius: 6px;
-  background: rgba(0,0,0,0.04);
-  font-size: 12px;
-  color: #888;
-  border: 1px solid rgba(0,0,0,0.06);
-}
-
-.detail-right { flex: 1.5; display: flex; flex-direction: column; gap: 10px; }
-
-.detail-tip {
-  font-size: 12px;
-  color: #888;
-  line-height: 1.5;
-  margin: 0;
-  padding: 10px 12px;
-  background: rgba(139,92,246,0.06);
-  border-radius: 10px;
-  border-left: 2px solid var(--color-primary-light);
-}
-
-.detail-action {
-  align-self: flex-start;
-  padding: 9px 24px;
-  border: none;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #E07A5F, #D2654B);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-  &:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(224,122,95,0.35); }
-  &:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
-}
-.exam-action {
-  background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
-  margin-top: 8px;
-  &:hover { filter: brightness(0.92); transform: scale(1.03) !important; }
-}
-.chapter-badge {
-  margin-top: 16px;
-  padding: 6px 14px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  text-align: center;
-  width: 100%;
-}
-.chapter-badge.learning-badge { background: rgba(59,130,246,0.1); color: #3b82f6; }
-.chapter-badge.available-badge { background: rgba(107,114,128,0.08); color: var(--text-tertiary); }
-
-/* ═══ 过渡 ═══ */
-.detail-slide-enter-active,
-.detail-slide-leave-active { transition: all 0.3s cubic-bezier(0.16,1,0.3,1); }
-.detail-slide-enter-from,
-.detail-slide-leave-to { transform: translateY(100%); opacity: 0; }
+.panel-slide-enter-active, .panel-slide-leave-active { transition: all 0.3s cubic-bezier(0.16,1,0.3,1); }
+.panel-slide-enter-from, .panel-slide-leave-to { transform: translateX(100%); opacity: 0; }
 </style>

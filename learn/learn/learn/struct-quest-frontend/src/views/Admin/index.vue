@@ -210,7 +210,6 @@
               <el-tag :type="row.is_admin ? 'danger' : 'info'" size="small">{{ row.is_admin ? '管理员' : '学生' }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="learning_mode" label="模式" width="110" />
           <el-table-column prop="plan_count" label="计划数" width="90" align="center" />
           <el-table-column prop="event_count" label="事件数" width="90" align="center" />
           <el-table-column prop="latest_profile_summary" label="最新画像摘要" min-width="320" show-overflow-tooltip />

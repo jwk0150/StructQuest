@@ -1008,7 +1008,7 @@ function goToNextQuestion() {
 .review-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 64px);
+  height: calc(100vh - var(--topnav-height));
   overflow: hidden;
   background: var(--bg-secondary);
 }

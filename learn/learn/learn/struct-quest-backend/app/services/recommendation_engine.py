@@ -1,6 +1,6 @@
 """
 AI 推荐引擎
-结合资源库 + 用户画像，使用 LLM 进行个性化推荐排序
+结合资源库 + 用户画像（优先 Agent 画像），使用 LLM 进行个性化推荐排序
 """
 
 import json
@@ -42,12 +42,15 @@ class RecommendationEngine:
             limit: 返回数量
             force_refresh: 是否强制重新生成推荐理由
         """
-        # 1. 获取用户画像
-        try:
-            profile = await user_profile_service.build_profile(db, user_id)
-        except Exception as e:
-            logger.warning(f"构建用户画像失败，使用默认画像: {e}")
-            profile = self._default_profile()
+        # 1. 获取用户画像（优先 Agent 画像）
+        profile = await self._load_agent_profile(db, user_id)
+        if not profile:
+            try:
+                profile = await user_profile_service.build_profile(db, user_id)
+            except Exception as e:
+                logger.warning(f"构建用户画像失败，使用默认画像: {e}")
+                profile = self._default_profile()
+            logger.info("[推荐引擎] 使用 user_profile_service 画像（Agent 画像不存在）")
 
         # 2. 获取候选资源集
         candidates = await self._get_candidates(db, profile, limit=self.MAX_CANDIDATES)
@@ -56,7 +59,7 @@ class RecommendationEngine:
             return {
                 "recommendations": [],
                 "total": 0,
-                "user_profile_summary": f"兴趣: {', '.join(profile.get('interests', ['算法', '数据结构'])[:3])}",
+                "user_profile_summary": self._build_profile_summary(profile),
                 "generated_at": datetime.now().isoformat(),
             }
 
@@ -69,12 +72,103 @@ class RecommendationEngine:
         return {
             "recommendations": recommendations,
             "total": len(candidates),
-            "user_profile_summary": (
-                f"{profile.get('level', '').title()}水平 | "
-                f"兴趣: {', '.join(profile.get('interests', ['算法'])[:3])}"
-            ),
+            "user_profile_summary": self._build_profile_summary(profile),
             "generated_at": datetime.now().isoformat(),
         }
+
+    async def _load_agent_profile(
+        self, db: AsyncSession, user_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """
+        从 Agent 画像表（student_profiles）加载画像
+        
+        如果 Agent 画像不存在，返回 None（调用方降级到 user_profile_service）
+        """
+        from app.models.student_profile import StudentProfile
+        
+        result = await db.execute(
+            select(StudentProfile).where(StudentProfile.user_id == user_id)
+        )
+        record = result.scalar_one_or_none()
+        
+        if not record or not record.ability_level:
+            # 降级：尝试读 users.profile_data
+            from app.models.user import User
+            user_result = await db.execute(select(User).where(User.id == user_id))
+            user = user_result.scalar_one_or_none()
+            if user and user.profile_data and isinstance(user.profile_data, dict):
+                pd = user.profile_data
+                if pd.get("ability_level"):
+                    logger.info("[推荐引擎] 从 users.profile_data 加载画像: level=%s", pd.get("ability_level"))
+                    return self._convert_agent_profile(pd)
+            return None
+        
+        logger.info(
+            "[推荐引擎] 从 Agent 画像加载: level=%s, weaknesses=%s, interests=%s, version=%d",
+            record.ability_level,
+            record.weaknesses or [],
+            record.interests or [],
+            record.profile_version or 1,
+        )
+        return self._convert_agent_profile(record.to_dict())
+
+    def _convert_agent_profile(self, agent_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        将 Agent 画像格式转换为推荐引擎需要的 profile 格式
+        
+        Agent 画像字段 → 推荐引擎字段:
+          ability_level → level
+          weaknesses → weak_points
+          interests → interests
+          knowledge_mastery → 用于推断 preferred_difficulty
+          resource_preferences → 保留到 profile 供 LLM prompt 使用
+        """
+        ability_level = agent_data.get("ability_level", "intermediate")
+        
+        # 难度偏好：根据画像级别推断
+        diff_map = {
+            "beginner": ["easy", "medium"],
+            "intermediate": ["medium", "hard"],
+            "advanced": ["hard"],
+            "expert": ["hard"],
+        }
+        
+        # 兴趣/关注点
+        interests = agent_data.get("interests", [])
+        if not interests:
+            interests = agent_data.get("strengths", [])[:5]
+        if not interests:
+            interests = list(agent_data.get("knowledge_mastery", {}).keys())[:5]
+        
+        # 薄弱点（关键字段！推荐引擎优先推荐薄弱点相关资源）
+        weak_points = agent_data.get("weaknesses", [])
+        
+        return {
+            "level": ability_level,
+            "interests": interests if interests else ["数据结构", "算法"],
+            "weak_points": weak_points,
+            "goal": agent_data.get("learning_goal", "exploration"),
+            "preferred_difficulty": diff_map.get(ability_level, ["medium"]),
+            "active_hours": "unknown",
+            "recent_topics": interests[:6] if interests else ["数据结构"],
+            "total_study_hours": float(agent_data.get("activity_score", 0)) / 10 or 0,
+            # 额外字段供 LLM prompt 使用
+            "resource_preferences": agent_data.get("resource_preferences", {}),
+            "knowledge_mastery": agent_data.get("knowledge_mastery", {}),
+            "strengths": agent_data.get("strengths", []),
+            "agent_profile_version": agent_data.get("profile_version", 0),
+        }
+
+    def _build_profile_summary(self, profile: Dict[str, Any]) -> str:
+        """构建用户画像摘要字符串"""
+        weak_str = ""
+        if profile.get("weak_points"):
+            weak_str = f" | 薄弱: {', '.join(profile['weak_points'][:3])}"
+        return (
+            f"{profile.get('level', '').title()}水平"
+            f" | 兴趣: {', '.join(profile.get('interests', ['算法'])[:3])}"
+            f"{weak_str}"
+        )
 
     async def _get_candidates(
         self,
@@ -154,21 +248,38 @@ class RecommendationEngine:
                 f"   分类:{c.category or '通用'}\n   热度:{c.heat_score:.0f}"
             )
 
+        # 构建资源偏好的文本
+        resource_prefs = profile.get("resource_preferences", {})
+        pref_text = ""
+        if resource_prefs:
+            top_prefs = sorted(resource_prefs.items(), key=lambda x: x[1], reverse=True)[:3]
+            pref_text = f"- 资源偏好: {', '.join(f'{k}({v:.0f})' for k, v in top_prefs)}"
+
+        # 构建薄弱点文本
+        weak_points = profile.get("weak_points", [])
+        weak_text = ""
+        if weak_points:
+            weak_text = f"- 薄弱环节: {', '.join(weak_points[:5])}"
+        else:
+            weak_text = "- 薄弱环节: 无明显薄弱点"
+
         prompt = f"""你是一个智能学习资源推荐助手。请根据用户画像，对以下外部学习资源进行评估排序。
 
 ## 用户画像
 - 学习水平: {profile.get('level', 'intermediate')}
 - 兴趣领域: {', '.join(profile.get('interests', ['算法', '数据结构'])[:5])}
-- 薄弱环节: {', '.join(profile.get('weak_points', [])[:3]) or '无明显薄弱点'}
+{weak_text}
 - 学习目标: {profile.get('goal', '提升编程能力')}
 - 偏好难度: {', '.join(profile.get('preferred_difficulty', ['medium']))}
+{pref_text}
 
 ## 候选资源
 {chr(10).join(candidate_texts)}
 
 ## 任务要求
 1. 从以上资源中选出最符合该用户的 Top {min(limit, len(candidates))} 条
-2. 返回 JSON 数组格式，每项包含：
+2. 优先推荐能覆盖用户薄弱环节的资源
+3. 返回 JSON 数组格式，每项包含：
    - id: 资源序号（对应上面的编号）
    - reason: 一句话中文推荐理由（不超过30字），说明为什么适合这个用户
 3. 只返回JSON，不要其他文字

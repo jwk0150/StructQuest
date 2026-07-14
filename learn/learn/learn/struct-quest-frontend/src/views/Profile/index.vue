@@ -225,7 +225,7 @@
 
       <!-- ═══ 右侧：学习日历 ═══ -->
       <div class="profile-right-col">
-        <LearningCalendar :mode="currentMode" />
+        <LearningCalendar />
       </div>
     </div><!-- /profile-main-grid -->
   </div>
@@ -240,7 +240,6 @@ import behaviorApi from '../../api/behavior'
 import { Clock, DataAnalysis } from '@element-plus/icons-vue'
 import { getStorage, setStorage, STORAGE_KEYS } from '../../utils/storage'
 import LearningCalendar from '../../components/LearningCalendar.vue'
-import { modeConfigs } from '../../data/knowledgeModes'
 import * as echarts from 'echarts'
 
 const sessionStore = useSessionStore()
@@ -289,34 +288,16 @@ const styleLabel = (s) => ({ visual: '视觉型', auditory: '听觉型', reading
 const riskLabel = (r) => ({ low: '低风险', medium: '中风险', high: '高风险' }[r] || r)
 const trendLabel = (t) => ({ improving: '📈 上升', accelerating: '🚀 快速提升', steady: '📊 稳定', plateauing: '➡️ 平台期', declining: '📉 下降', stable: '📊 稳定' }[t] || t)
 
-const currentMode = computed(() => sessionStore.learningMode || 'beginner')
-
-// ═══════════ 模式相关进度 ═══════════
-function getModeVisibleNodeIds(mode) {
-  const config = modeConfigs[mode] || modeConfigs.beginner
-  if (config.examCategoryOverride) {
-    const ids = new Set()
-    for (const cat of config.examCategoryOverride) {
-      for (const nodeId of cat.nodes) ids.add(nodeId)
-    }
-    return [...ids]
-  }
-  if (config.includedNodeIds) return config.includedNodeIds
-  return null
-}
-
+// ═══════════ 知识图谱进度（全量统计） ═══════════
 async function loadModeProgress() {
   try {
     const [progressRes, mapRes] = await Promise.all([
       knowledgeApi.getProgress().catch(() => null),
       knowledgeApi.getMap().catch(() => null),
     ])
-    const mode = currentMode.value
-    const visibleNodeIds = getModeVisibleNodeIds(mode)
     if (mapRes?.nodes) {
       let completed = 0, inProgress = 0, available = 0
       for (const node of mapRes.nodes) {
-        if (visibleNodeIds && !visibleNodeIds.includes(node.id)) continue
         const status = node.status || 'available'
         if (status === 'completed') completed++
         else if (status === 'in_progress' || status === 'learning') inProgress++
@@ -404,8 +385,6 @@ onMounted(async () => {
 
   loading.value = false
 })
-
-watch(currentMode, () => loadModeProgress())
 </script>
 
 <style lang="scss" scoped>

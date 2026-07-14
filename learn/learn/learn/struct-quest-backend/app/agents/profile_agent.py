@@ -183,13 +183,7 @@ class ProfileAgent(BaseAgent):
         # 标记更新时间
         profile_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
-        # ★ 持久化到数据库
-        user_id = state.get("user_id", "")
-        if user_id and user_id != "default":
-            try:
-                self._persist_to_db(user_id, profile_data, analytics, is_first_time)
-            except Exception as e:
-                logger.warning("画像持久化失败（非致命）: %s", e)
+        # ★ 持久化已移至 graph.run() 层统一处理，此处不再调用 _persist_to_db
 
         # 日志
         log = self._log(

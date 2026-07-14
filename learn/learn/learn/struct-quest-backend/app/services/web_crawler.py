@@ -359,110 +359,142 @@ class WebCrawlerService:
             logger.error(f"[抖音] 爬取失败: {e}")
         return resources
 
+    # ================================================================
+    #                   兜底数据 + 画像驱动爬取
+    # ================================================================
+
+    def _get_fallback_data(self) -> List[Dict[str, Any]]:
+        """内置精选数据（当真实爬取失败时的兜底）— 全部使用真实可访问 URL"""
+        return [
+            # ── B站 ──
+            {
+                "title": "数据结构与算法完整教程 | B站百万播放",
+                "url": "https://www.bilibili.com/video/BV1E4411H73v",
+                "source": SOURCE_BILIBILI,
+                "category": "视频教程",
+                "tags": ["数据结构", "算法", "入门"],
+                "summary": "从零开始学数据结构，涵盖数组、链表、树、图等核心内容，配合动画演示，适合初学者系统学习",
+                "author": "尚硅谷",
+                "cover_image": "",
+                "heat_score": 95.0,
+            },
+            {
+                "title": "计算机网络微课堂 | 从零开始搞懂网络",
+                "url": "https://www.bilibili.com/video/BV1c4411w77d",
+                "source": SOURCE_BILIBILI,
+                "category": "视频教程",
+                "tags": ["网络", "TCP/IP", "HTTP"],
+                "summary": "深入浅出讲解TCP/IP协议族，配合Wireshark抓包实战演示",
+                "author": "湖南科技大学",
+                "cover_image": "",
+                "heat_score": 85.0,
+            },
+            # ── CSDN 搜索页 ──
+            {
+                "title": "红黑树手撕代码：从原理到完整实现",
+                "url": "https://so.csdn.net/so/search?q=红黑树",
+                "source": SOURCE_CSDN,
+                "category": "技术文章",
+                "tags": ["红黑树", "二叉树", "面试"],
+                "summary": "图文并茂讲解红黑树的5种插入情况和3种删除情况，附完整C++代码实现和动图演示",
+                "author": "CSDN",
+                "cover_image": "",
+                "heat_score": 78.0,
+            },
+            {
+                "title": "LeetCode Hot100 题解 | 逐题精讲",
+                "url": "https://so.csdn.net/so/search?q=LeetCode+Hot100",
+                "source": SOURCE_CSDN,
+                "category": "技术文章",
+                "tags": ["LeetCode", "刷题", "算法"],
+                "summary": "LeetCode热题Top100详细解析，每道题都配有复杂度分析、多解法对比和代码注释",
+                "author": "CSDN",
+                "cover_image": "",
+                "heat_score": 90.0,
+            },
+            # ── 知乎搜索页 ──
+            {
+                "title": "动态规划到底该怎么学？| 知乎搜索",
+                "url": "https://www.zhihu.com/search?type=content&q=动态规划",
+                "source": SOURCE_ZHIHU,
+                "category": "问答/专栏",
+                "tags": ["动态规划", "学习路线", "算法"],
+                "summary": "背包问题、最长递增子序列、LCS等DP经典题型详解，从状态定义到转移方程的完整思路",
+                "author": "",
+                "cover_image": "",
+                "heat_score": 82.0,
+            },
+            {
+                "title": "算法与数据结构面试题精选 | 知乎搜索",
+                "url": "https://www.zhihu.com/search?type=content&q=数据结构+算法",
+                "source": SOURCE_ZHIHU,
+                "category": "问答/专栏",
+                "tags": ["算法", "面试", "数据结构"],
+                "summary": "常见算法面试题详解，涵盖排序、查找、动态规划等核心考点",
+                "author": "",
+                "cover_image": "",
+                "heat_score": 71.0,
+            },
+            # ── 掘金搜索页 ──
+            {
+                "title": "数据结构与算法学习资源 | 掘金搜索",
+                "url": "https://juejin.cn/search?query=数据结构",
+                "source": SOURCE_JUEJIN,
+                "category": "技术文章",
+                "tags": ["数据结构", "算法", "面试"],
+                "summary": "掘金优质数据结构与算法文章合集",
+                "author": "掘金",
+                "cover_image": "",
+                "heat_score": 73.0,
+            },
+            # ── GitHub ──
+            {
+                "title": "visualgo-algorithm: 交互式算法可视化平台",
+                "url": "https://visualgo.net/en",
+                "source": SOURCE_GITHUB,
+                "category": "开源项目",
+                "tags": ["可视化", "算法", "教育"],
+                "summary": "支持排序/搜索/图论/动态规划等30+种算法交互式可视化演示，支持自定义输入数据",
+                "author": "Steven Halim",
+                "cover_image": "",
+                "heat_score": 88.0,
+            },
+        ]
+
+    async def crawl_by_profile(self, profile: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """根据用户画像的薄弱点和兴趣生成搜索关键词，然后爬取"""
+        keywords = []
+        weak_points = profile.get("weak_points", [])
+        interests = profile.get("interests", [])
+        
+        if weak_points:
+            keywords.extend(weak_points[:3])
+        if interests:
+            keywords.extend(interests[:3])
+        
+        if not keywords:
+            keywords = ["数据结构", "算法"]
+        
+        unique_keywords = list(dict.fromkeys(keywords))[:5]
+        
+        all_resources = []
+        for kw in unique_keywords:
+            logger.info("[WebCrawler] 按画像关键词爬取: %s", kw)
+            resources = await self.crawl_all(keyword=str(kw))
+            all_resources.extend(resources)
+        
+        seen_urls = set()
+        unique_resources = []
+        for r in all_resources:
+            url = r.get("url", "")
+            if url and url not in seen_urls:
+                seen_urls.add(url)
+                unique_resources.append(r)
+        
+        logger.info("[WebCrawler] 画像驱动爬取完成: %d 条去重资源", len(unique_resources))
+        return unique_resources
+
 
 # 全局实例
 crawler_service = WebCrawlerService()
 
-
-def _get_fallback_data(self) -> List[Dict[str, Any]]:
-    """内置精选数据（当真实爬取失败时的兜底）"""
-    from datetime import datetime
-    now = datetime.now()
-    return [
-        # ── B站 ──
-        {
-            "title": "数据结构与算法完整教程 | B站百万播放",
-            "url": "https://www.bilibili.com/video/BV1E4411H73v",
-            "source": SOURCE_BILIBILI,
-            "category": "视频教程",
-            "tags": ["数据结构", "算法", "入门"],
-            "summary": "从零开始学数据结构，涵盖数组、链表、树、图等核心内容，配合动画演示，适合初学者系统学习",
-            "author": "尚硅谷",
-            "cover_image": "",
-            "heat_score": 95.0,
-        },
-        {
-            "title": "计算机网络微课堂 | 从零开始搞懂网络",
-            "url": "https://www.bilibili.com/video/BV1c4411w77d",
-            "source": SOURCE_BILIBILI,
-            "category": "视频教程",
-            "tags": ["网络", "TCP/IP", "HTTP"],
-            "summary": "深入浅出讲解TCP/IP协议族，配合Wireshark抓包实战演示",
-            "author": "湖南科技大学",
-            "cover_image": "",
-            "heat_score": 85.0,
-        },
-        # ── CSDN ──
-        {
-            "title": "红黑树手撕代码：从原理到完整实现",
-            "url": "https://blog.csdn.net/xxx/red-black-tree",
-            "source": SOURCE_CSDN,
-            "category": "技术文章",
-            "tags": ["红黑树", "二叉树", "面试"],
-            "summary": "图文并茂讲解红黑树的5种插入情况和3种删除情况，附完整C++代码实现和动图演示",
-            "author": "CSDN博主",
-            "cover_image": "",
-            "heat_score": 78.0,
-        },
-        {
-            "title": "LeetCode Hot100 题解 | 逐题精讲",
-            "url": "https://blog.csdn.net/xxx/leetcode-hot100",
-            "source": SOURCE_CSDN,
-            "category": "技术文章",
-            "tags": ["LeetCode", "刷题", "算法"],
-            "summary": "LeetCode热题Top100详细解析，每道题都配有复杂度分析、多解法对比和代码注释",
-            "author": "代码随想录",
-            "cover_image": "",
-            "heat_score": 90.0,
-        },
-        # ── 知乎 ──
-        {
-            "title": "动态规划到底该怎么学？| 知乎高赞回答",
-            "url": "https://www.zhihu.com/question/xxx/dp-learning",
-            "source": SOURCE_ZHIHU,
-            "category": "问答/专栏",
-            "tags": ["动态规划", "学习路线", "算法"],
-            "summary": "背包问题、最长递增子序列、LCS等DP经典题型详解，从状态定义到转移方程的完整思路",
-            "author": "",
-            "cover_image": "",
-            "heat_score": 82.0,
-        },
-        {
-            "title": "前端面试必问：手写Promise/A+规范实现详解",
-            "url": "https://www.zhihu.com/question/xxx/promise-aplus",
-            "source": SOURCE_ZHIHU,
-            "category": "问答/专栏",
-            "tags": ["前端", "JavaScript", "Promise", "面试"],
-            "summary": "从零实现一个符合Promises/A+规范的Promise类，then链式调用、错误处理逐行注释",
-            "author": "",
-            "cover_image": "",
-            "heat_score": 71.0,
-        },
-        # ── 掘金 ──
-        {
-            "title": "Vue3 源码解析：响应式原理篇 | 掘金精选",
-            "url": "https://juejin.cn/post/vue3-reactivity",
-            "source": SOURCE_JUEJIN,
-            "category": "技术文章",
-            "tags": ["Vue3", "源码", "响应式", "Proxy"],
-            "summary": "深入Vue3源码，从reactive到effect再到trigger，完整梳理响应式系统的实现细节",
-            "author": "掘金作者",
-            "cover_image": "",
-            "heat_score": 73.0,
-        },
-        # ── GitHub ──
-        {
-            "title": "visualgo-algorithm: 交互式算法可视化平台",
-            "url": "https://visualgo.net/en",
-            "source": SOURCE_GITHUB,
-            "category": "开源项目",
-            "tags": ["可视化", "算法", "教育"],
-            "summary": "支持排序/搜索/图论/动态规划等30+种算法交互式可视化演示，支持自定义输入数据",
-            "author": "Steven Halim",
-            "cover_image": "",
-            "heat_score": 88.0,
-        },
-    ]
-
-
-WebCrawlerService._get_fallback_data = _get_fallback_data

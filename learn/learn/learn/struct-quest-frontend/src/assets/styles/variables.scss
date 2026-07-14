@@ -1,70 +1,81 @@
 ﻿/* ============================================
-   StructQuest Design System - Studio Edition
+   StructQuest Design System - Studio Edition v2
    ============================================ */
 
 :root {
-  --color-primary: #2563eb;
-  --color-primary-light: #3b82f6;
-  --color-primary-dark: #1d4ed8;
-  --color-primary-rgb: 37, 99, 235;
+  /* ── Brand Colors ── */
+  --color-primary: #6366f1;
+  --color-primary-light: #818cf8;
+  --color-primary-dark: #4f46e5;
+  --color-primary-rgb: 99, 102, 241;
 
+  --color-accent-purple: #8b5cf6;
+  --color-accent-purple-rgb: 139, 92, 246;
   --color-accent-teal: #14b8a6;
   --color-accent-teal-rgb: 20, 184, 166;
   --color-accent-navy: #0f172a;
   --color-accent-gold: #f59e0b;
   --color-accent-gold-rgb: 245, 158, 11;
-  --color-accent-lavender: #7c3aed;
 
   --color-success: #16a34a;
   --color-warning: #d97706;
   --color-danger: #dc2626;
   --color-info: #0891b2;
 
+  /* ── Hero / Decorative Gradients ── */
+  --hero-gradient: linear-gradient(135deg, #8b5cf6, #6366f1, #4f46e5);
+  --hero-gradient-soft: linear-gradient(135deg, rgba(139,92,246,0.04), rgba(99,102,241,0.02));
+  --card-glow: 0 0 40px rgba(139, 92, 246, 0.06);
+
+  /* ── Knowledge Nodes ── */
   --node-mastered: #16a34a;
-  --node-learning: #2563eb;
-  --node-recommended: #7c3aed;
+  --node-learning: #6366f1;
+  --node-recommended: #8b5cf6;
   --node-not-started: #cbd5e1;
 
+  /* ── Backgrounds ── */
   --bg-color: #ffffff;
-  --bg-secondary: #f6f8fb;
-  --bg-tertiary: #eef2f7;
-  --bg-page: #f3f6fb;
-  --bg-elevated: rgba(255, 255, 255, 0.86);
-  --bg-soft-blue: #edf4ff;
+  --bg-secondary: #f8f9fc;
+  --bg-tertiary: #f1f3f9;
+  --bg-page: #f5f6fa;
+  --bg-elevated: rgba(255, 255, 255, 0.92);
+  --bg-soft-blue: #f0f2ff;
+  --bg-soft-purple: rgba(139, 92, 246, 0.04);
 
-  --sidebar-bg: #0f172a;
-  --sidebar-hover: rgba(255, 255, 255, 0.08);
-  --sidebar-active: rgba(59, 130, 246, 0.18);
-
+  /* ── Text ── */
   --text-main: #111827;
   --text-secondary: #475569;
   --text-tertiary: #94a3b8;
   --text-muted: #94a3b8;
-  --text-sidebar: #f8fafc;
-  --text-sidebar-muted: #94a3b8;
 
-  --border-color: #dfe7f1;
-  --border-light: #edf2f7;
-  --border-strong: #c7d2e2;
+  /* ── Borders ── */
+  --border-color: #e2e6f0;
+  --border-light: #eef1f7;
+  --border-strong: #cdd3e2;
 
+  /* ── Shadows ── */
   --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-md: 0 12px 28px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.14), 0 8px 18px rgba(15, 23, 42, 0.08);
-  --shadow-glow: 0 14px 34px rgba(37, 99, 235, 0.22);
+  --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.12), 0 8px 18px rgba(15, 23, 42, 0.06);
+  --shadow-glow: 0 8px 30px rgba(99, 102, 241, 0.2);
+  --shadow-card-hover: 0 16px 40px rgba(15, 23, 42, 0.08);
 
+  /* ── Radii ── */
   --radius-xs: 6px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 22px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
   --radius-round: 9999px;
 
+  /* ── Transitions ── */
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 0.24s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.38s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-spring: 0.48s cubic-bezier(0.34, 1.56, 0.64, 1);
 
+  /* ── Typography ── */
   --font-display: Inter, "SF Pro Display", "Segoe UI", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
   --font-body: Inter, "Segoe UI", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
@@ -94,6 +105,7 @@
   --tracking-normal: 0;
   --tracking-wide: 0.02em;
 
+  /* ── Spacing ── */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -106,6 +118,11 @@
   --space-16: 64px;
   --space-20: 80px;
   --space-24: 96px;
+
+  /* ── TopNav ── */
+  --topnav-height: 58px;
+  --topnav-bg: rgba(255, 255, 255, 0.85);
+  --topnav-border: rgba(0, 0, 0, 0.05);
 }
 
 [data-theme='dark'] {
@@ -114,18 +131,13 @@
   --bg-tertiary: #1d2638;
   --bg-page: #0b1020;
   --bg-elevated: rgba(16, 21, 33, 0.9);
-  --bg-soft-blue: rgba(37, 99, 235, 0.14);
-
-  --sidebar-bg: #0b1020;
-  --sidebar-hover: rgba(255, 255, 255, 0.07);
-  --sidebar-active: rgba(59, 130, 246, 0.2);
+  --bg-soft-blue: rgba(99, 102, 241, 0.12);
+  --bg-soft-purple: rgba(139, 92, 246, 0.08);
 
   --text-main: #f8fafc;
   --text-secondary: #cbd5e1;
   --text-tertiary: #7b8797;
   --text-muted: #7b8797;
-  --text-sidebar: #f8fafc;
-  --text-sidebar-muted: #94a3b8;
 
   --border-color: #243247;
   --border-light: #1c2638;
@@ -135,5 +147,9 @@
   --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 16px 36px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 28px 70px rgba(0, 0, 0, 0.44);
-  --shadow-glow: 0 16px 38px rgba(37, 99, 235, 0.26);
+  --shadow-glow: 0 16px 38px rgba(99, 102, 241, 0.26);
+  --shadow-card-hover: 0 20px 48px rgba(0, 0, 0, 0.35);
+
+  --topnav-bg: rgba(11, 16, 32, 0.85);
+  --topnav-border: rgba(255, 255, 255, 0.06);
 }

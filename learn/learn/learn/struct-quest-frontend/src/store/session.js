@@ -15,31 +15,23 @@ export const useSessionStore = defineStore('session', {
       isAIThinking: false,
       user: null,
       token: null,
-      learningMode: getStorage(STORAGE_KEYS.LEARNING_MODE) || '', // 学习模式（空=未选择）
-      learningModeInfo: null,
     }
   },
   actions: {
-    /** 登录（保存 token 到 localStorage + 同步学习模式） */
+    /** 登录（保存 token + 同步用户信息） */
     login(userData, token) {
       this.isAuthenticated = true
       this.user = userData
       this.token = token
       // ★ 优先使用后端返回的 has_completed_onboarding
       this.hasCompletedOnboarding = userData.has_completed_onboarding ?? false
+      // 新用户（未完成引导）清除可能残留的旧 localStorage 数据，防止路由守卫跳过
+      if (!this.hasCompletedOnboarding) {
+        removeStorage(STORAGE_KEYS.ONBOARDING_DONE)
+        removeStorage(STORAGE_KEYS.PROFILE)
+      }
       if (token) {
         setStorage(STORAGE_KEYS.TOKEN, token)
-      }
-      // ★ 同步后端学习模式（老用户已有模式，新用户为空）
-      const serverMode = userData.learning_mode || ''
-      if (serverMode) {
-        this.learningMode = serverMode
-        setStorage(STORAGE_KEYS.LEARNING_MODE, serverMode)
-      } else {
-        // ★ 后端返回空 = 新用户尚未选择模式
-        // 必须清除 store 和 localStorage，防止残留旧用户的模式
-        this.learningMode = ''
-        removeStorage(STORAGE_KEYS.LEARNING_MODE)
       }
       // ★ 如果后端没返回 profile_data，但后端标记了已完成引导，尝试从 localStorage 恢复
       // （防止后端 DB 丢失但本地有备份的情况）
@@ -64,10 +56,7 @@ export const useSessionStore = defineStore('session', {
       this.user = null
       this.token = null
       this.hasCompletedOnboarding = false
-      this.learningMode = ''
-      this.learningModeInfo = null
       removeStorage(STORAGE_KEYS.TOKEN)
-      removeStorage(STORAGE_KEYS.LEARNING_MODE)
       removeStorage(STORAGE_KEYS.PROFILE)
       removeStorage(STORAGE_KEYS.ONBOARDING_DONE)
     },
@@ -118,36 +107,6 @@ export const useSessionStore = defineStore('session', {
     },
     setAIThinking(status) {
       this.isAIThinking = status
-    },
-
-    /** 设置学习模式（本地 + 后端持久化） */
-    setLearningMode(mode, modeInfo) {
-      this.learningMode = mode
-      this.learningModeInfo = modeInfo || null
-      setStorage(STORAGE_KEYS.LEARNING_MODE, mode)
-    },
-
-    /** 从后端同步学习模式 */
-    async syncLearningMode() {
-      try {
-        const token = getStorage(STORAGE_KEYS.TOKEN)
-        if (!token) return
-        const base = import.meta.env.VITE_API_BASE || '/api'
-        const r = await fetch(`${base}/profile/my-learning-mode`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (r.ok) {
-          const data = await r.json()
-          const mode = data.learning_mode || ''
-          if (mode) {
-            this.learningMode = mode
-            this.learningModeInfo = data.learning_mode_info || null
-            setStorage(STORAGE_KEYS.LEARNING_MODE, mode)
-          }
-        }
-      } catch (e) {
-        console.warn('[session] syncLearningMode failed', e)
-      }
     },
   },
   getters: {

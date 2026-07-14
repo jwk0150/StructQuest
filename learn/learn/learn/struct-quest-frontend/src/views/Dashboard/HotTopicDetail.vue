@@ -192,14 +192,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useSessionStore } from '../../store/session'
 
 const route = useRoute()
 const router = useRouter()
-const session = useSessionStore()
 
 // ═══ 当前模式 ═══
-const currentMode = computed(() => route.query.mode || session.learningMode || 'beginner')
+const currentMode = computed(() => route.query.mode || 'beginner')
 
 // ═══ Tab 定义 ═══
 const tabs = [
