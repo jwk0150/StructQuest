@@ -40,9 +40,12 @@ async def get_db():
 # ===== Redis 缓存连接 =====
 class RedisClient:
     _instance = None
+    _available = True   # 标记 Redis 是否可用，失败后不再重试
 
     @classmethod
     async def get_instance(cls):
+        if not cls._available:          # 已知不可用，直接跳过
+            return None
         if cls._instance is None:
             redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
             try:
@@ -50,11 +53,15 @@ class RedisClient:
                     redis_url,
                     decode_responses=True,  # 自动解码为字符串
                     max_connections=20,
+                    socket_connect_timeout=2,   # 2秒超时，避免长时间卡顿
+                    socket_timeout=2,
                 )
+                await cls._instance.ping()      # 验证连接是否真正可用
                 logger.info(" Redis 连接成功！")
             except Exception as e:
-                logger.warning(f" Redis 连接失败（缓存功能不可用）: {e}")
+                logger.warning(f" Redis 连接失败（缓存功能不可用，不影响正常使用）: {e}")
                 cls._instance = None
+                cls._available = False   # 失败后标记不可用，后续秒过
         return cls._instance
 
 
@@ -159,6 +166,11 @@ async def init_database():
                 ("knowledge_documents", "status", "VARCHAR(20) DEFAULT 'active'"),
                 ("learning_progress", "resource_progress", "JSON"),
                 ("users", "is_admin", "BOOLEAN DEFAULT 0"),
+                # 核心画像字段（旧数据库可能缺失）
+                ("users", "has_completed_onboarding", "BOOLEAN DEFAULT 0"),
+                ("users", "profile_data", "JSON"),
+                ("users", "learning_mode", "VARCHAR(20) DEFAULT 'basic'"),
+                ("users", "learning_mode_set_at", "DATETIME"),
                 # 冷启动画像新增字段
                 ("users", "major", "VARCHAR(100)"),
                 ("users", "grade", "VARCHAR(50)"),
@@ -170,6 +182,21 @@ async def init_database():
                 ("users", "learning_purpose", "VARCHAR(50)"),
                 ("users", "preferred_styles", "JSON"),
                 ("users", "diagnostic_results", "JSON"),
+                # ★ v4 新增：聊天消息多模态字段
+                ("chat_messages", "attachments", "JSON"),
+                ("chat_messages", "primary_format", "VARCHAR(30)"),
+                ("chat_messages", "format_reason", "VARCHAR(200)"),
+                # ★ v5 新增：AI学习效果评估 — 资源调整记录表
+                ("resource_adjustments", "adjustment_type", "VARCHAR(50)"),
+                ("resource_adjustments", "from_value", "JSON"),
+                ("resource_adjustments", "to_value", "JSON"),
+                ("resource_adjustments", "trigger_event", "VARCHAR(50)"),
+                ("resource_adjustments", "reason", "TEXT"),
+                ("resource_adjustments", "metric_name", "VARCHAR(50)"),
+                ("resource_adjustments", "metric_before", "FLOAT"),
+                ("resource_adjustments", "metric_after", "FLOAT"),
+                ("resource_adjustments", "improvement", "FLOAT"),
+                ("resource_adjustments", "extra_data", "JSON"),
             ]:
                 try:
                     pragma = await conn.execute(text(f"PRAGMA table_info({table})"))
@@ -177,10 +204,86 @@ async def init_database():
                     if col not in cols:
                         await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
                         print(f" 数据库迁移：已添加 {table}.{col} 列")
-                except Exception:
-                    pass  # 表可能不存在，忽略
+                except Exception as e:
+                    print(f"  迁移失败 {table}.{col}: {e}")
+
+            # ★ v4 新增：创建 chat_resources 表（如果不存在）
+            result = await conn.execute(text(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='chat_resources'"
+            ))
+            if not result.fetchone():
+                await conn.execute(text("""
+                    CREATE TABLE chat_resources (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        message_id INTEGER NOT NULL REFERENCES chat_messages(id),
+                        session_id INTEGER NOT NULL REFERENCES chat_sessions(id),
+                        user_id INTEGER NOT NULL,
+                        content_id INTEGER REFERENCES generated_contents(id),
+                        resource_type VARCHAR(30) NOT NULL,
+                        format VARCHAR(20) NOT NULL,
+                        title VARCHAR(200) NOT NULL,
+                        content_text TEXT,
+                        content_json JSON,
+                        file_url VARCHAR(500),
+                        thumbnail_url VARCHAR(500),
+                        generated_for VARCHAR(100),
+                        quality_score FLOAT DEFAULT 0,
+                        file_size_bytes INTEGER DEFAULT 0,
+                        generation_time_seconds FLOAT DEFAULT 0,
+                        extra_meta JSON,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                print(" 数据库迁移：已创建 chat_resources 表")
+
+            # ★ v5 新增：resource_adjustments 表（AI资源调整记录）
+            ra_result = await conn.execute(text(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='resource_adjustments'"
+            ))
+            if not ra_result.fetchone():
+                await conn.execute(text("""
+                    CREATE TABLE resource_adjustments (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL REFERENCES users(id),
+                        adjustment_type VARCHAR(50) NOT NULL,
+                        from_value JSON,
+                        to_value JSON,
+                        trigger_event VARCHAR(50),
+                        reason TEXT,
+                        metric_name VARCHAR(50),
+                        metric_before FLOAT,
+                        metric_after FLOAT,
+                        improvement FLOAT,
+                        extra_data JSON,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                print(" 数据库迁移：已创建 resource_adjustments 表")
     except Exception as e:
         print(f" 数据库迁移检查失败（可忽略）: {e}")
+
+    #  确保核心表 profile_snapshots 存在（Base.metadata.create_all 遗漏时的兜底）
+    try:
+        from sqlalchemy import text
+        async with engine.begin() as conn:
+            result = await conn.execute(text(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='profile_snapshots'"
+            ))
+            if not result.fetchone():
+                await conn.execute(text("""
+                    CREATE TABLE profile_snapshots (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        profile_version INTEGER DEFAULT 1,
+                        source VARCHAR(30) DEFAULT 'manual',
+                        summary TEXT,
+                        profile_data JSON NOT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                print(" 数据库兜底：已创建 profile_snapshots 表")
+    except Exception as e:
+        print(f" profile_snapshots 表检查失败（可忽略）: {e}")
 
     #  初始化/升级知识图谱节点数据（55节点 · 含进阶内容与依赖关系）
     try:
@@ -238,5 +341,15 @@ async def init_database():
                 print(f" 知识图谱已是最新版（55节点含进阶内容），无需升级")
     except Exception as e:
         print(f" 知识图谱初始化/迁移失败（可忽略）: {e}")
+
+    # 调试：打印 users 表实际列
+    try:
+        from sqlalchemy import text
+        async with engine.begin() as conn:
+            result = await conn.execute(text("PRAGMA table_info(users)"))
+            cols = [row[1] for row in result.fetchall()]
+            print(f"[DEBUG] users 表实际列 ({len(cols)} 列): {cols}")
+    except Exception as e:
+        print(f"[DEBUG] 无法读取 users 表结构: {e}")
 
     print(" SQLite 数据库表创建/更新完成")

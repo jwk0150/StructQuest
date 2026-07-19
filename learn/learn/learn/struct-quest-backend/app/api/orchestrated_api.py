@@ -9,6 +9,7 @@ Orchestrator 统一入口 API
 这样前端不需要知道内部 Agent 如何调度，
 也不直接调用各个 Agent。
 """
+import asyncio
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -121,7 +122,9 @@ async def orchestrated_learning(
     subject = req.subject or "数据结构"
 
     try:
-        result = run_learning_session(
+        # ★ asyncio.to_thread 包装同步调用，避免阻塞 FastAPI 事件循环
+        result = await asyncio.to_thread(
+            run_learning_session,
             subject=subject,
             goal=req.goal,
             user_id=user_id,

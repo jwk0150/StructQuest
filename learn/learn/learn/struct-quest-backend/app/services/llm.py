@@ -106,22 +106,22 @@ class LLMService:
         from dotenv import load_dotenv
         load_dotenv()
 
-        # Primary: SiliconFlow
+        # Primary: DeepSeek
         main_key = os.getenv("LLM_API_KEY")
-        main_base = os.getenv("LLM_BASE_URL", "https://api.siliconflow.cn/v1")
-        main_model = os.getenv("LLM_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+        main_base = os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1")
+        main_model = os.getenv("LLM_MODEL", "deepseek-chat")
         if main_key:
             self.providers["primary"] = OpenAIProvider(
-                api_key=main_key, model=main_model, base_url=main_base, label="Primary(SiliconFlow)")
+                api_key=main_key, model=main_model, base_url=main_base, label="Primary(DeepSeek)")
             print(f"[LLM] Primary registered: {main_base} / {main_model}")
 
-        # Fallback: DeepSeek
-        fallback_key = os.getenv("FALLBACK_API_KEY") or os.getenv("OPENAI_API_KEY")
-        fallback_base = os.getenv("FALLBACK_BASE_URL") or os.getenv("OPENAI_BASE_URL", "https://api.deepseek.com/v1")
-        fallback_model = os.getenv("FALLBACK_MODEL", "deepseek-chat")
-        if fallback_key:
+        # Fallback: 同样走 DeepSeek（保留故障切换逻辑，便于后续扩展）
+        fallback_key = os.getenv("FALLBACK_API_KEY") or main_key
+        fallback_base = os.getenv("FALLBACK_BASE_URL") or main_base
+        fallback_model = os.getenv("FALLBACK_MODEL") or main_model
+        if fallback_key and fallback_key != main_key:
             self.providers["fallback"] = OpenAIProvider(
-                api_key=fallback_key, model=fallback_model, base_url=fallback_base, label="Fallback(DeepSeek)")
+                api_key=fallback_key, model=fallback_model, base_url=fallback_base, label="Fallback")
             print(f"[LLM] Fallback registered: {fallback_base} / {fallback_model}")
 
         # Legacy: OPENAI_API_KEY

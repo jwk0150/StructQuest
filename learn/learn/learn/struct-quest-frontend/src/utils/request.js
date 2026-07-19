@@ -91,6 +91,19 @@ request.interceptors.response.use(
         console.error('[Http] ❌ 服务器错误 (500)')
         return Promise.reject(response.data || { detail: '服务器内部错误' })
 
+      case 422:
+        // FastAPI 校验失败 → 提取可读消息
+        console.error('[Http] ❌ 参数校验失败 (422)', response.data)
+        const detail422 = response.data?.detail
+        if (Array.isArray(detail422)) {
+          const msgs = detail422.map(d => {
+            const loc = (d.loc || []).filter(l => l !== 'body').join('.')
+            return loc ? `${loc}: ${d.msg}` : d.msg
+          })
+          return Promise.reject({ detail: msgs.join('; ') })
+        }
+        return Promise.reject(response.data || { detail: '请求参数校验失败' })
+
       default:
         console.error('[Http] ❌ 请求失败:', response.status, response.data)
         return Promise.reject(response.data || { detail: `请求失败 (${response.status})` })

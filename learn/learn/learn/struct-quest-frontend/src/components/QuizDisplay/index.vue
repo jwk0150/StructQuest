@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="quiz-display">
     <!-- 头部统计 -->
     <div class="quiz-header">
@@ -435,8 +435,8 @@ function typeLabel(t) {
       background: #f2f3f5; padding: 2px 10px; border-radius: 10px;
     }
     .quiz-progress {
-      font-size: 12px; color: #6366f1;
-      background: rgba(99,102,241,.08);
+      font-size: 12px; color: #c84c5a;
+      background: rgba(200,76,90,.08);
       padding: 2px 10px; border-radius: 10px;
       font-weight: 500;
     }
@@ -471,7 +471,7 @@ function typeLabel(t) {
   .result-text { font-size: 14px; font-weight: 700; color: #1d2129; white-space: nowrap; }
   .result-score {
     font-size: 14px; color: #4e5969;
-    strong { color: #4f46e5; font-size: 18px; }
+    strong { color: #aa3948; font-size: 18px; }
   }
   .result-percent {
     font-size: 12px; color: #86909c;
@@ -490,7 +490,7 @@ function typeLabel(t) {
     .result-bar {
       height: 100%; border-radius: 3px;
       transition: width .6s cubic-bezier(.4,0,.2,1);
-      background: linear-gradient(90deg, #4f46e5, #10b981);
+      background: linear-gradient(90deg, #aa3948, #10b981);
     }
   }
 
@@ -543,10 +543,10 @@ function typeLabel(t) {
   transition: all .2s;
   white-space: nowrap;
 
-  &:hover { border-color: #4f46e5; color: #4f46e5; background: rgba(79,70,229,.04); }
+  &:hover { border-color: #aa3948; color: #aa3948; background: rgba(79,70,229,.04); }
 
   &.submit-btn {
-    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    background: linear-gradient(135deg, #aa3948, #c84c5a);
     color: white;
     border-color: transparent;
     font-weight: 600;
@@ -606,7 +606,7 @@ function typeLabel(t) {
     .qc-num {
       width: 26px; height: 26px;
       border-radius: 8px;
-      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      background: linear-gradient(135deg, #aa3948, #a93546);
       color: white;
       font-size: 12px; font-weight: 700;
       display: flex; align-items: center; justify-content: center;
@@ -637,17 +637,17 @@ function typeLabel(t) {
       &.diff-easy { background: rgba(16, 185, 129, .1); color: #059669; }
       &.diff-medium { background: rgba(245, 158, 11, .1); color: #d97706; }
       &.diff-hard { background: rgba(239, 68, 68, .1); color: #dc2626; }
-      &.bloom { background: rgba(79, 70, 229, .08); color: #4f46e5; }
-      &.type-tag { background: rgba(99, 102, 241, .08); color: #6366f1; font-weight: 600; }
+      &.bloom { background: rgba(79, 70, 229, .08); color: #aa3948; }
+      &.type-tag { background: rgba(200,76,90, .08); color: #c84c5a; font-weight: 600; }
       &.weak { background: rgba(245, 158, 11, .12); color: #d97706; }
     }
   }
 
   .qc-knowledge {
-    font-size: 12px; color: #6366f1;
+    font-size: 12px; color: #c84c5a;
     margin-bottom: 8px;
     padding: 4px 10px;
-    background: rgba(99, 102, 241, .06);
+    background: rgba(200,76,90, .06);
     border-radius: 6px;
     display: inline-block;
   }
@@ -678,9 +678,9 @@ function typeLabel(t) {
   }
 
   &.selected {
-    border-color: #4f46e5;
+    border-color: #aa3948;
     background: rgba(79,70,229,.06);
-    color: #4f46e5;
+    color: #aa3948;
   }
 
   &.correct {
@@ -703,7 +703,7 @@ function typeLabel(t) {
     width: 24px; height: 24px;
     border-radius: 6px;
     background: rgba(79,70,229,.1);
-    color: #4f46e5;
+    color: #aa3948;
     font-size: 12px; font-weight: 700;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
@@ -736,7 +736,7 @@ function typeLabel(t) {
 
     &:focus {
       outline: none;
-      border-color: #4f46e5;
+      border-color: #aa3948;
       background: #fff;
       box-shadow: 0 0 0 3px rgba(79,70,229,.08);
     }
@@ -761,7 +761,7 @@ function typeLabel(t) {
     display: flex; align-items: center; gap: 6px;
     margin-bottom: 10px;
     font-size: 13px; font-weight: 600;
-    color: #6366f1;
+    color: #c84c5a;
     svg { flex-shrink: 0; }
 
     &.explain-correct { color: #059669; }
@@ -776,7 +776,7 @@ function typeLabel(t) {
       .answer-label { font-size: 12px; color: #86909c; }
       .answer-value {
         font-size: 14px; font-weight: 700;
-        color: #4f46e5;
+        color: #aa3948;
         background: rgba(79,70,229,.08);
         padding: 2px 10px; border-radius: 4px;
       }
@@ -811,3 +811,4 @@ function typeLabel(t) {
   padding-bottom: 0;
 }
 </style>
+

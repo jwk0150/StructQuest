@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="hero">
     <div class="hero-inner">
       <!-- Left: Text + CTAs -->
@@ -37,7 +37,7 @@
             <circle cx="200" cy="180" r="160" fill="url(#heroGlow)"/>
             <!-- Connection lines -->
             <g v-for="(node, i) in hexNodes" :key="'line'+i">
-              <line :x1="200" :y1="180" :x2="node.x" :y2="node.y" stroke="rgba(139,92,246,0.12)" stroke-width="1" stroke-dasharray="4,6"/>
+              <line :x1="200" :y1="180" :x2="node.x" :y2="node.y" stroke="rgba(217,121,130,0.12)" stroke-width="1" stroke-dasharray="4,6"/>
             </g>
             <!-- Outer nodes -->
             <g v-for="(node, i) in hexNodes" :key="'node'+i">
@@ -71,12 +71,12 @@ defineProps({
 
 const hexNodes = [
   { label: '线性', x: 200, y: 42, color: 'var(--color-accent-purple)' },
-  { label: '栈队', x: 308, y: 98, color: '#6366f1' },
+  { label: '栈队', x: 308, y: 98, color: '#c84c5a' },
   { label: '树', x: 328, y: 220, color: 'var(--color-accent-purple)' },
-  { label: '查找', x: 275, y: 316, color: '#a78bfa' },
-  { label: '图', x: 122, y: 316, color: '#6366f1' },
+  { label: '查找', x: 275, y: 316, color: '#e4a5aa' },
+  { label: '图', x: 122, y: 316, color: '#c84c5a' },
   { label: '串', x: 68, y: 220, color: 'var(--color-accent-purple)' },
-  { label: '排序', x: 88, y: 98, color: '#8b5cf6' },
+  { label: '排序', x: 88, y: 98, color: '#d97982' },
 ]
 </script>
 
@@ -104,8 +104,8 @@ const hexNodes = [
   gap: 8px;
   padding: 5px 14px;
   border-radius: 999px;
-  background: rgba(139,92,246,0.06);
-  border: 1px solid rgba(139,92,246,0.1);
+  background: rgba(217,121,130,0.06);
+  border: 1px solid rgba(217,121,130,0.1);
   font-size: 12px;
   font-weight: 600;
   color: var(--color-accent-purple);
@@ -185,11 +185,11 @@ const hexNodes = [
 .cta-primary {
   background: var(--hero-gradient);
   color: #fff;
-  box-shadow: 0 4px 18px rgba(99,102,241,0.25);
+  box-shadow: 0 4px 18px rgba(200,76,90,0.25);
 }
 .cta-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(99,102,241,0.32);
+  box-shadow: 0 8px 28px rgba(200,76,90,0.32);
 }
 .cta-ghost {
   background: var(--bg-secondary);
@@ -199,7 +199,7 @@ const hexNodes = [
 .cta-ghost:hover {
   background: var(--bg-color);
   color: var(--color-primary);
-  border-color: rgba(99,102,241,0.2);
+  border-color: rgba(200,76,90,0.2);
   transform: translateY(-2px);
 }
 
@@ -228,3 +228,4 @@ const hexNodes = [
   .hero-title { font-size: 32px; }
 }
 </style>
+

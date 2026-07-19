@@ -28,16 +28,20 @@ logger = logging.getLogger("manim_renderer")
 
 # 输出目录（延迟初始化，避免模块加载时在 Windows 上失败）
 def _get_output_dir() -> Path:
-    """获取输出目录，确保存在"""
-    static_base = os.environ.get("STATIC_DIR", "/app/static")
+    """获取输出目录，确保存在（Windows/Linux 兼容绝对路径）"""
+    static_base = os.environ.get("STATIC_DIR")
+    if not static_base:
+        # ★ 不依赖 /app/static（Docker 路径在 Windows 上缺盘符）
+        static_base = str(Path(__file__).resolve().parent.parent / "static")
     video_dir = os.environ.get("MANIM_OUTPUT_DIR", os.path.join(static_base, "videos"))
-    dir_path = Path(video_dir)
+    dir_path = Path(video_dir).resolve()  # ★ 强制解析为绝对路径
     dir_path.mkdir(parents=True, exist_ok=True)
+    logger.info("🎬 Manim 输出目录: %s", dir_path)
     return dir_path
 
 # Manim 代码安全检查：禁止的危险模式
 DANGEROUS_PATTERNS = [
-    r"\bimport\s+os\b",
+    # ★ import os 本身是安全的，只拦截危险的 os 调用
     r"os\.(system|remove|rmdir|rename|exec|popen|spawn)",
     r"\bsubprocess\b",
     r"\beval\s*\(",
@@ -163,6 +167,21 @@ class ManimRenderer:
             "thumbnail_url": None,
         }
 
+        # ★ 渲染前清理超时的旧任务目录（防止旧视频堆积污染搜索结果）
+        try:
+            now = datetime.now().timestamp()
+            for item in self.output_dir.iterdir():
+                if item.is_dir() and len(item.name) >= 20:  # task_id 格式: YYYYMMDDHHMMSSffffff
+                    age = now - item.stat().st_mtime
+                    if age > 600:  # 10分钟前的旧目录
+                        try:
+                            shutil.rmtree(item, ignore_errors=True)
+                            logger.info("🧹 清理旧任务目录: %s (age=%.0fs)", item.name, age)
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+
         # 验证代码安全性
         is_valid, error_msg = self.validate_code(code)
         if not is_valid:
@@ -224,6 +243,11 @@ config.background_color = "#1a1a2e"
 
             logger.info("🎬 执行渲染命令: %s", " ".join(cmd))
 
+            # ★ 预创建 task 输出目录（确保 Manim 能写入，Windows 下防止路径歧义）
+            task_dir = self.output_dir / task_id
+            task_dir.mkdir(parents=True, exist_ok=True)
+            logger.info("🎬 task 输出目录: %s", task_dir)
+
             proc = subprocess.run(
                 cmd,
                 capture_output=True,
@@ -244,79 +268,37 @@ config.background_color = "#1a1a2e"
                        proc.returncode, len(proc.stdout or ""), len(proc.stderr or ""))
 
             if proc.returncode == 0:
-                # 查找生成的 MP4 文件（多位置搜索，兼容不同 Manim 版本）
-                search_dirs = []
+                # ★ 精确路径查找：Manim v0.18+ 输出格式 {media}/videos/{script_name}/480p15/{scene}.mp4
+                task_dir = self.output_dir / task_id
+                # 脚本名固定为 animation.py → 子目录为 animation
+                possible_paths = [
+                    task_dir / "videos" / "animation" / "480p15" / f"{scene_name}.mp4",
+                    task_dir / "videos" / "animation" / "480p30" / f"{scene_name}.mp4",
+                    task_dir / "videos" / "animation" / "480p" / f"{scene_name}.mp4",
+                    task_dir / "videos" / f"{scene_name}.mp4",
+                ]
 
-                # 位置1: --media_dir 指定的路径（标准位置）
-                media_dir = self.output_dir / task_id / "videos"
-                if media_dir.exists():
-                    search_dirs.append(media_dir)
+                video_path = None
+                for p in possible_paths:
+                    if p.exists():
+                        video_path = p
+                        logger.info("🎬 精确命中: %s (%.2fMB)", str(p), p.stat().st_size / (1024*1024))
+                        break
 
-                # 位置2: --media_dir 根目录（某些版本直接放这里）
-                flat_dir = self.output_dir / task_id
-                if flat_dir.exists():
-                    search_dirs.append(flat_dir)
+                if not video_path:
+                    # rglob 兜底
+                    for ext in ("*.mp4", "*.mov", "*.webm"):
+                        found = list(task_dir.rglob(ext))
+                        full = [f for f in found if "partial_movie_files" not in str(f)]
+                        if full:
+                            video_path = full[0]
+                            logger.info("🎬 rglob兜底: %s", video_path)
+                            break
 
-                # 位置3: 脚本工作目录（manim 可能忽略 --media_dir）
-                if os.path.isdir(work_dir):
-                    search_dirs.append(Path(work_dir))
-
-                # 位置4: 默认 manim 输出目录 (C:\Users\xxx\media)
-                default_media = Path.home() / "media"
-                if default_media.exists():
-                    search_dirs.append(default_media)
-
-                # 位置5: 项目 static 根目录的 videos 子目录
-                static_videos = self.output_dir
-                if static_videos.exists():
-                    # 也直接搜 output_dir 本身（manim 有时直接放这里）
-                    search_dirs.append(static_videos)
-
-                # 去重
-                seen = set()
-                unique_dirs = []
-                for sd in search_dirs:
-                    resolved = str(sd.resolve())
-                    if resolved not in seen:
-                        seen.add(resolved)
-                        unique_dirs.append(sd)
-
-                logger.info("🎬 开始搜索 MP4，共 %d 个搜索目录", len(unique_dirs))
-
-                # 在所有位置递归搜索
-                video_files = []
-                for sd in unique_dirs:
-                    if sd.exists():
-                        found = list(sd.rglob("*.mp4"))
-                        video_files.extend(found)
-                        if found:
-                            logger.info("🎬 在 %s 找到 %d 个 MP4: %s",
-                                       sd, len(found), [f.name for f in found[:5]])
-                        else:
-                            logger.info("🎬 在 %s 未找到 MP4（目录存在: %s）", sd, sd.exists())
-                    else:
-                        logger.info("🎬 搜索目录不存在: %s", sd)
-
-                if video_files:
-                    # 优先选择非 partial 的完整视频文件
-                    full_videos = [f for f in video_files if "partial_movie_files" not in str(f)]
-                    if full_videos:
-                        # 取最新的完整视频
-                        full_videos.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-                        video_path = full_videos[0]
-                    else:
-                        # 只有 partial 文件，取最大的（最可能是完整的）
-                        video_files.sort(key=lambda p: p.stat().st_size, reverse=True)
-                        video_path = video_files[0]
-                        logger.warning("⚠️ 仅找到 partial 文件，使用最大的: %s (%.2fMB)",
-                                     video_path.name, video_path.stat().st_size / (1024*1024))
-
-                    # 复制到统一的输出位置
+                if video_path:
                     final_name = f"{task_id}_{scene_name}.mp4"
                     final_path = self.output_dir / final_name
                     shutil.copy2(video_path, final_path)
-
-                    # 尝试生成缩略图
                     thumb_path = self._generate_thumbnail(final_path, task_id)
 
                     result["success"] = True
@@ -330,20 +312,14 @@ config.background_color = "#1a1a2e"
                         elapsed, file_size_mb, final_name, video_path
                     )
                 else:
-                    # 详细诊断信息
-                    searched = [str(s.resolve()) for s in unique_dirs]
-                    # 检查 Manim 是否实际渲染了场景（可能在 stderr/stdout 中有线索）
-                    stderr_tail = (proc.stderr or "")[-500:]
-                    stdout_tail = (proc.stdout or "")[-500:]
+                    # 诊断信息
+                    dir_contents = list(task_dir.rglob("*"))[:20] if task_dir.exists() else []
                     result["error"] = (
-                        f"渲染完成但未找到输出视频。"
-                        f"搜索路径({len(searched)}个): {searched}; "
-                        f"stdout尾部: {stdout_tail[-200:]}; "
-                        f"stderr尾部: {stderr_tail[-200:]}"
+                        f"渲染完成但未找到输出视频。task_dir={task_dir}, "
+                        f"目录内容: {[p.relative_to(task_dir) for p in dir_contents[:10]]}"
                     )
-                    logger.warning("⚠️ 未找到MP4文件。搜索路径: %s", searched)
-                    logger.warning("⚠️ stdout[-1000:]: %s", stdout_tail)
-                    logger.warning("⚠️ stderr[-1000:]: %s", stderr_tail)
+                    logger.warning("⚠️ 未找到MP4文件。task_dir=%s, 目录内容: %s",
+                                 task_dir, [p.name for p in dir_contents[:10]])
             else:
                 # 提取关键错误信息
                 stderr_text = proc.stderr or ""

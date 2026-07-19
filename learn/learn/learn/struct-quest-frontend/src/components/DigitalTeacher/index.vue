@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="digital-teacher">
     <!-- 讯飞虚拟人 SDK 渲染容器 — 充满整个区域 -->
     <div v-show="iflytekActive && !iflytekError" ref="iflytekContainer" class="iflytek-container"></div>
@@ -247,13 +247,13 @@ defineExpose({
 }
 .loading-spinner {
   width: 36px; height: 36px;
-  border: 3px solid rgba(99,102,241,0.15);
-  border-top-color: #818cf8; border-right-color: #6366f1;
+  border: 3px solid rgba(200,76,90,0.15);
+  border-top-color: #d86b76; border-right-color: #c84c5a;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-.loading-text { color: #a5b4fc; font-size: 13px; margin: 0; }
+.loading-text { color: #e7b9bd; font-size: 13px; margin: 0; }
 
 /* 待机 */
 .standby-overlay {
@@ -273,7 +273,7 @@ defineExpose({
   white-space: nowrap; max-width: 90%;
   backdrop-filter: blur(12px);
   box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-  &.info { background: rgba(99,102,241,0.9); color: #fff; }
+  &.info { background: rgba(200,76,90,0.9); color: #fff; }
   &.success { background: rgba(16,185,129,0.9); color: #fff; }
   &.error { background: rgba(239,68,68,0.9); color: #fff; }
   &.warning { background: rgba(245,158,11,0.9); color: #fff; }
@@ -281,3 +281,4 @@ defineExpose({
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
+

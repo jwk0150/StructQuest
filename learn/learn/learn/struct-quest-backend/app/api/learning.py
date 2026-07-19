@@ -1587,27 +1587,70 @@ async def save_resource(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_required_user),
 ):
-    """保存一个 AI 生成的学习资源到持久化存储"""
-    content = GeneratedContent(
-        user_id=current_user.id,
-        content_type=req.resource_type,
-        title=req.title,
-        content_text=req.content_text,
-        content_json=req.content_json or {},
-        file_url=req.file_url,
-        topic_tag=req.topic_tag,
-        description=req.chapter_name,           # 用 description 存储章节名
-        format=req.format,
-    )
+    """
+    保存一个 AI 生成的学习资源到持久化存储（upsert 模式去重）
 
-    db.add(content)
+    去重键：(user_id, content_type, topic_tag, title)
+    - 同一用户、同一资源类型、同一知识点、同一标题 → 更新已有记录
+    - 不存在 → 新建记录
+    """
+    # ★ 步骤1：按去重键查找已存在记录
+    stmt = select(GeneratedContent).where(
+        GeneratedContent.user_id == current_user.id,
+        GeneratedContent.content_type == req.resource_type,
+        GeneratedContent.title == req.title,
+    )
+    # topic_tag 可能是 NULL，单独处理
+    if req.topic_tag:
+        stmt = stmt.where(GeneratedContent.topic_tag == req.topic_tag)
+    else:
+        stmt = stmt.where(GeneratedContent.topic_tag.is_(None))
+
+    result = await db.execute(stmt)
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        # ★ 步骤2a：更新已有记录（不创建新行）
+        existing.content_text = req.content_text
+        existing.content_json = req.content_json or {}
+        existing.file_url = req.file_url
+        existing.description = req.chapter_name
+        existing.format = req.format
+        content = existing
+        action = "updated"
+        logger.info(
+            f"[Resource] 资源 upsert 更新: type={req.resource_type}, id={content.id}, "
+            f"topic={req.topic_tag}, user={current_user.id}"
+        )
+    else:
+        # ★ 步骤2b：新建记录
+        content = GeneratedContent(
+            user_id=current_user.id,
+            content_type=req.resource_type,
+            title=req.title,
+            content_text=req.content_text,
+            content_json=req.content_json or {},
+            file_url=req.file_url,
+            topic_tag=req.topic_tag,
+            description=req.chapter_name,           # 用 description 存储章节名
+            format=req.format,
+        )
+        db.add(content)
+        action = "created"
+        logger.info(
+            f"[Resource] 资源 upsert 新建: type={req.resource_type}, "
+            f"topic={req.topic_tag}, user={current_user.id}"
+        )
+
     await db.commit()
     await db.refresh(content)
 
-    logger.info(f"[Resource] 保存学习资源: type={req.resource_type}, id={content.id}, "
-                f"topic={req.topic_tag}, user={current_user.id}")
-
-    return {"success": True, "id": content.id, "message": "保存成功"}
+    return {
+        "success": True,
+        "id": content.id,
+        "action": action,           # 返回操作类型便于前端判断
+        "message": "更新成功" if action == "updated" else "保存成功",
+    }
 
 
 @router.get("/resource/saved")
@@ -1677,3 +1720,55 @@ async def delete_saved_resource(
     logger.info(f"[Resource] 删除学习资源: id={resource_id}, user={current_user.id}")
 
     return {"success": True, "message": "已删除"}
+
+
+@router.post("/resource/saved/dedup")
+async def dedup_saved_resources(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_required_user),
+):
+    """
+    ★ 一次性清理当前用户的重复保存记录
+
+    去重键：(content_type, topic_tag, title)
+    - 保留每组的最新一条（id 最大）
+    - 删除其它更早的重复记录
+    - 返回清理统计
+    """
+    # 查询当前用户全部资源，按去重键分组找出重复项
+    stmt = select(GeneratedContent).where(
+        GeneratedContent.user_id == current_user.id
+    ).order_by(GeneratedContent.created_at.desc(), GeneratedContent.id.desc())
+    result = await db.execute(stmt)
+    all_records = result.scalars().all()
+
+    seen_keys = {}   # (content_type, topic_tag, title) -> id
+    to_delete = []
+    for rec in all_records:
+        key = (rec.content_type, rec.topic_tag, rec.title)
+        if key in seen_keys:
+            # 重复项，标记为待删除
+            to_delete.append(rec.id)
+        else:
+            seen_keys[key] = rec.id
+
+    if to_delete:
+        # 批量删除
+        del_stmt = (
+            GeneratedContent.__table__.delete()
+            .where(GeneratedContent.id.in_(to_delete))
+        )
+        await db.execute(del_stmt)
+        await db.commit()
+
+    logger.info(
+        f"[Resource] 用户 {current_user.id} 清理重复资源: "
+        f"删除 {len(to_delete)} 条, 保留 {len(seen_keys)} 条"
+    )
+
+    return {
+        "success": True,
+        "deleted_count": len(to_delete),
+        "kept_count": len(seen_keys),
+        "message": f"已清理 {len(to_delete)} 条重复记录",
+    }

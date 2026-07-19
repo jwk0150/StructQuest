@@ -100,9 +100,10 @@ WORKFLOW_MAP: Dict[str, List[str]] = {
         "assessment_agent",           # ① 评估答案
     ],
 
-    # ── 提问：直接问答，不进入学习管道 ──
+    # ── 提问：先获取画像→再辅导回答（v4 多模态）──
     EventType.ASK_QUESTION: [
-        "tutor_agent",                # ① 辅导回答
+        "profile_agent",              # ① 获取/更新最新画像（供格式决策使用）
+        "tutor_agent",                # ② 辅导回答（含格式决策+多模态资源生成）
     ],
 
     # ── 完成学习：全面分析 + 更新 ──
@@ -211,11 +212,7 @@ class OrchestratorAgent(BaseAgent):
             agent = msg.get("agent", "")
             if agent and agent != "orchestrator":
                 return True
-        # 也检查各 Agent 产出是否非空
-        if (state.get("student_profile") and state["student_profile"].get("ability_level")):
-            return True
-        if state.get("chat_response"):
-            return True
+        # 也检查各 Agent 产出是否非空（但不检查从 DB 加载的画像和聊天回复）
         if state.get("learning_analytics"):
             return True
         return False
@@ -261,7 +258,7 @@ class OrchestratorAgent(BaseAgent):
     def _apply_post_adjustment(
         self, state: LearningState, last_agent: str
     ) -> Optional[List[str]]:
-        """根据 Agent 产出动态调整后续队列"""
+        """根据 Agent 产出动态调整后续队列 + 写入调整记录"""
         if last_agent == "assessment_agent":
             assessment = state.get("assessment", {})
             # 兼容新旧格式
@@ -274,14 +271,88 @@ class OrchestratorAgent(BaseAgent):
             iteration = state.get("iteration_count", 0)
             max_iter = state.get("max_iterations", 5)
 
+            result = None
+            adjust_type = None
+            adjust_reason = None
+
             if score < 40 and iteration < max_iter:
-                return adjustments["score_below_40"]
+                result = adjustments["score_below_40"]
+                adjust_type = "path_reroute"
+                adjust_reason = f"测评得分 {score} 分（<40），严重不及格，触发路径重规划"
             elif score < 80:
-                return adjustments["score_40_to_80"]
+                result = adjustments["score_40_to_80"]
+                adjust_type = "resource_type_change"
+                adjust_reason = f"测评得分 {score} 分（40-80），调整后续资源以适应水平"
             else:
-                return adjustments["score_above_80"]
+                result = adjustments["score_above_80"]
+                adjust_type = None  # 不需要记录
+
+            # ★ v5: 写入资源调整记录（异步，不阻塞主流程）
+            if adjust_type:
+                self._log_adjustment(state, adjust_type, adjust_reason, score)
+
+            return result
 
         return None
+
+    def _log_adjustment(
+        self, state: LearningState, adjust_type: str, reason: str, score: float
+    ):
+        """异步写入调整记录到数据库（失败不影响主流程）"""
+        try:
+            import asyncio
+            from app.db.session import AsyncSessionLocal
+            from app.models.resource_adjustment import ResourceAdjustment
+            from datetime import datetime, timezone
+
+            user_id_str = state.get("user_id", "0")
+            try:
+                user_id = int(user_id_str)
+            except (ValueError, TypeError):
+                return
+
+            # 获取当前路径信息
+            learning_path = state.get("learning_path", [])
+            current_step = learning_path[0] if learning_path else {}
+
+            from_value = {
+                "topic": current_step.get("topic", ""),
+                "score": score,
+            }
+            to_value = {
+                "adjustment": adjust_type,
+            }
+
+            async def _write():
+                async with AsyncSessionLocal() as db:
+                    adj = ResourceAdjustment(
+                        user_id=user_id,
+                        adjustment_type=adjust_type,
+                        from_value=from_value,
+                        to_value=to_value,
+                        trigger_event="assessment_score",
+                        reason=reason,
+                        metric_name="score",
+                        metric_before=score,
+                    )
+                    db.add(adj)
+                    await db.commit()
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.ensure_future(_write())
+                else:
+                    loop.run_until_complete(_write())
+            except RuntimeError:
+                # 没有事件循环，尝试同步
+                try:
+                    asyncio.run(_write())
+                except Exception:
+                    pass
+
+        except Exception as e:
+            logger.debug(f"[Orchestrator] 调整记录写入失败（非关键）: {e}")
 
     # ═══════════════════════════════════════════
     #  处理新事件
@@ -455,7 +526,7 @@ class OrchestratorAgent(BaseAgent):
         prompt = f"""你是 StructQuest 多智能体学习系统的总控调度器。
 
 ## 当前状态
-{chr(10).join(summary_posts)}
+{chr(10).join(summary_parts)}
 
 ## 可用 Agent
 {chr(10).join(f'- {a}' for a in available_agents)}

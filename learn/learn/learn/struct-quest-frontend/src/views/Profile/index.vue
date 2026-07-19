@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="profile-view">
     <!-- 用户卡片 -->
     <div class="user-card">
@@ -7,7 +7,7 @@
       </div>
       <div class="user-info">
         <h2>{{ userName }}</h2>
-        <p class="user-role">{{ personaType || '尚未完成学习画像' }}</p>
+        <p class="user-role">{{ userRoleText }}</p>
         <div class="user-meta">
           <span class="meta-item">
             <el-icon><Clock /></el-icon>
@@ -59,11 +59,11 @@
         <div class="strength-weak-row" v-if="strengths.length || weaknesses.length">
           <div v-if="strengths.length" class="sw-col">
             <span class="sw-label strong">✅ 优势</span>
-            <span v-for="s in strengths.slice(0,5)" :key="s" class="sw-chip strong">{{ s }}</span>
+            <span v-for="s in strengths.slice(0,5)" :key="s" class="sw-chip strong">{{ displayName(s) }}</span>
           </div>
           <div v-if="weaknesses.length" class="sw-col">
             <span class="sw-label weak">⚠️ 待加强</span>
-            <span v-for="w in weaknesses.slice(0,5)" :key="w" class="sw-chip weak">{{ w }}</span>
+            <span v-for="w in weaknesses.slice(0,5)" :key="w" class="sw-chip weak">{{ displayName(w) }}</span>
           </div>
         </div>
       </el-card>
@@ -78,7 +78,7 @@
           </div>
           <div class="behavior-stat">
             <span class="bs-label">专注度</span>
-            <el-progress :percentage="Math.round(focusScore)" :color="focusScore > 70 ? '#6366f1' : '#f59e0b'" :stroke-width="10" />
+            <el-progress :percentage="Math.round(focusScore)" :color="focusScore > 70 ? '#c84c5a' : '#f59e0b'" :stroke-width="10" />
           </div>
           <div class="behavior-stat">
             <span class="bs-label">信心指数</span>
@@ -152,7 +152,7 @@
         <div class="path-list">
           <div v-for="(step, idx) in learningPath.slice(0, 8)" :key="idx" class="path-item">
             <span class="step-num">{{ idx + 1 }}</span>
-            <span class="step-topic">{{ step.topic || step.title || '步骤 ' + (idx+1) }}</span>
+            <span class="step-topic">{{ stepTitle(step, idx) }}</span>
             <el-tag size="small">{{ step.bloom_level || 'learn' }}</el-tag>
           </div>
         </div>
@@ -189,7 +189,7 @@
         <div class="path-list">
           <div v-for="(step, idx) in learningPath.slice(0, 8)" :key="idx" class="path-item">
             <span class="step-num">{{ idx + 1 }}</span>
-            <span class="step-topic">{{ step.topic || step.title || '步骤 ' + (idx+1) }}</span>
+            <span class="step-topic">{{ stepTitle(step, idx) }}</span>
             <el-tag size="small">{{ step.bloom_level || 'learn' }}</el-tag>
           </div>
         </div>
@@ -240,6 +240,8 @@ import behaviorApi from '../../api/behavior'
 import { Clock, DataAnalysis } from '@element-plus/icons-vue'
 import { getStorage, setStorage, STORAGE_KEYS } from '../../utils/storage'
 import LearningCalendar from '../../components/LearningCalendar.vue'
+import { getNodeNameById, aggregateToChapters } from '../../data/knowledgeMap'
+import { formatKnowledgeName, stepKnowledgeTitle } from '../../utils/knowledgeNames'
 import * as echarts from 'echarts'
 
 const sessionStore = useSessionStore()
@@ -251,6 +253,12 @@ const knowledgeProgress = ref(null)
 const loading = ref(true)
 
 const userName = computed(() => sessionStore.user?.username || '学生')
+const userRoleText = computed(() => {
+  if (personaType.value) return personaType.value
+  if (abilityLevel.value) return levelLabel(abilityLevel.value) + ' · ' + styleLabel(learningStyle.value)
+  if (learningStyle.value) return styleLabel(learningStyle.value)
+  return '尚未完成学习画像'
+})
 const createdAt = computed(() => {
   const d = dynamicProfile.value?.updated_at || profileData.value?.generated_at
   return d ? new Date(d).toLocaleDateString('zh-CN') : '—'
@@ -318,14 +326,27 @@ async function loadModeProgress() {
 const radarChartRef = ref(null)
 let radarChartInstance = null
 
+/** 将 ID 翻译为中文名，未命中原样返回 */
+function displayName(id) {
+  return formatKnowledgeName(id || getNodeNameById(id))
+}
+
+function stepTitle(step, idx) {
+  return stepKnowledgeTitle(step, '步骤 ' + (idx + 1))
+}
+
 async function renderKnowledgeRadar() {
   if (!radarChartRef.value) return
   const mastery = knowledgeMastery.value
-  const entries = Object.entries(mastery)
-  if (entries.length === 0) return
+  if (!mastery || Object.keys(mastery).length === 0) return
 
-  const dimensions = entries.map(([name]) => ({ name, max: 100 }))
-  const values = entries.map(([, score]) => score)
+  // 聚合成 8 章分数
+  const chapterScores = aggregateToChapters(mastery)
+  const chapterEntries = Object.entries(chapterScores)
+  if (chapterEntries.length === 0) return
+
+  const dimensions = chapterEntries.map(([name]) => ({ name, max: 100 }))
+  const values = chapterEntries.map(([, score]) => score)
 
   if (!radarChartInstance) radarChartInstance = echarts.init(radarChartRef.value)
   radarChartInstance.setOption({
@@ -349,15 +370,38 @@ async function renderKnowledgeRadar() {
 onMounted(async () => {
   loading.value = true
 
-  // 1. 加载新格式六维动态画像
-  try {
-    const res = await behaviorApi.getDynamicProfile()
-    if (res?.profile) {
-      dynamicProfile.value = res.profile
+  // ★ 0. 优先从 session store 读取（避免网络延迟或 401）
+  if (sessionStore.user?.profile_data) {
+    const sp = sessionStore.user.profile_data
+    if (sp.ability_level || sp.learning_style || sp.summary) {
+      dynamicProfile.value = sp
+    } else {
+      profileData.value = sp
     }
-  } catch (e) { console.warn('[Profile] 动态画像加载失败:', e) }
+  }
+  // 同步 localStorage
+  if (!dynamicProfile.value && !profileData.value) {
+    const local = getStorage(STORAGE_KEYS.PROFILE)
+    if (local) {
+      if (local.ability_level || local.learning_style) {
+        dynamicProfile.value = local
+      } else {
+        profileData.value = local
+      }
+    }
+  }
 
-  // 2. 兼容：加载旧格式画像
+  // 1. 加载新格式六维动态画像（API）
+  if (!dynamicProfile.value) {
+    try {
+      const res = await behaviorApi.getDynamicProfile()
+      if (res?.profile) {
+        dynamicProfile.value = res.profile
+      }
+    } catch (e) { console.warn('[Profile] 动态画像加载失败:', e) }
+  }
+
+  // 2. 兼容：加载旧格式画像（API）
   if (!dynamicProfile.value) {
     try {
       const res = await profileApi.get()
@@ -365,15 +409,7 @@ onMounted(async () => {
         profileData.value = res.profile_data
         setStorage(STORAGE_KEYS.PROFILE, res.profile_data)
       }
-    } catch (e) { /* 忽略 */ }
-    // localStorage 降级
-    if (!profileData.value) {
-      const local = getStorage(STORAGE_KEYS.PROFILE)
-      if (local) profileData.value = local
-    }
-    if (!profileData.value && sessionStore.user?.profile_data) {
-      profileData.value = sessionStore.user.profile_data
-    }
+    } catch (e) { console.warn('[Profile] 画像加载失败:', e) }
   }
 
   // 3. 知识图谱进度
@@ -574,7 +610,7 @@ onMounted(async () => {
   margin-bottom: 16px;
   .persona-tag {
     padding: 4px 14px;
-    background: #f5f3ff;
+    background: #fbf2f3;
     border-radius: 20px;
     font-size: 13px;
     font-weight: 600;
@@ -718,3 +754,8 @@ onMounted(async () => {
   &.weak { background: rgba(239,68,68,0.08); color: #dc2626; }
 }
 </style>
+
+
+
+
+

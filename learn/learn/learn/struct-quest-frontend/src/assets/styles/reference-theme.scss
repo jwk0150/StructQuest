@@ -1,0 +1,189 @@
+/* ==========================================================
+   StructQuest Reference Theme — based on D:/lastone/login-demo.html
+   Loaded last to resolve the final project-wide visual direction.
+   ========================================================== */
+
+:root {
+  --color-primary: #c84c5a;
+  --color-primary-light: #d86b76;
+  --color-primary-dark: #aa3948;
+  --color-primary-rgb: 200, 76, 90;
+  --color-accent-purple: #d97982;
+  --color-accent-purple-rgb: 217, 121, 130;
+  --color-accent-teal: #b96a72;
+  --color-accent-teal-rgb: 185, 106, 114;
+  --color-accent-navy: #202231;
+  --color-accent-gold: #c84c5a;
+  --color-accent-gold-rgb: 200, 76, 90;
+  --color-success: #2f8b70;
+  --color-warning: #c8862e;
+  --color-danger: #c34d59;
+  --color-info: #c84c5a;
+
+  --hero-gradient: linear-gradient(135deg, #c84c5a, #d97982);
+  --hero-gradient-soft: linear-gradient(135deg, rgba(200, 76, 90, .08), rgba(217, 121, 130, .04));
+  --card-glow: 0 18px 50px rgba(200, 76, 90, .08);
+
+  --node-mastered: #2f8b70;
+  --node-learning: #c84c5a;
+  --node-recommended: #d97982;
+  --node-not-started: #cfd3dc;
+
+  --bg-color: #fffefa;
+  --bg-secondary: #f7f7f5;
+  --bg-tertiary: #efefec;
+  --bg-page: #faf9f5;
+  --bg-elevated: #fffefa;
+  --bg-soft-blue: #f1f4ff;
+  --bg-soft-purple: #f4f2ff;
+
+  --text-main: #202231;
+  --text-secondary: #5e6270;
+  --text-tertiary: #90949f;
+  --text-muted: #9ca0aa;
+
+  --border-color: #e2e2df;
+  --border-light: #eeeeeb;
+  --border-strong: #cbcbd0;
+
+  --shadow-xs: 0 1px 2px rgba(32, 34, 49, .035);
+  --shadow-sm: 0 3px 14px rgba(32, 34, 49, .05);
+  --shadow-md: 0 16px 40px rgba(32, 34, 49, .075), 0 2px 7px rgba(32, 34, 49, .035);
+  --shadow-lg: 0 28px 74px rgba(32, 34, 49, .11), 0 8px 20px rgba(32, 34, 49, .05);
+  --shadow-glow: 0 12px 34px rgba(200, 76, 90, .2);
+  --shadow-card-hover: 0 20px 50px rgba(32, 34, 49, .09);
+
+  --font-display: "Times New Roman", "Noto Serif SC", "Source Han Serif SC", "Songti SC", Georgia, serif;
+  --font-body: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, sans-serif;
+  --topnav-bg: rgba(250, 249, 245, .97);
+  --topnav-border: rgba(32, 34, 49, .08);
+
+  --lp-bg: #faf9f5 !important;
+  --lp-bg-secondary: #f1f1ee !important;
+  --lp-primary: #c84c5a !important;
+  --lp-primary-hover: #aa3948 !important;
+  --lp-primary-light: rgba(200, 76, 90, .08) !important;
+  --lp-primary-glow: rgba(200, 76, 90, .18) !important;
+  --lp-text: #202231 !important;
+  --lp-text-secondary: #5e6270 !important;
+  --lp-text-tertiary: #90949f !important;
+  --lp-border: #e2e2df !important;
+  --lp-border-light: #eeeeeb !important;
+  --lp-font-display: "Times New Roman", "Noto Serif SC", "Songti SC", Georgia, serif !important;
+  --lp-font-body: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif !important;
+}
+
+[data-theme='dark'] {
+  --bg-color: #171824;
+  --bg-secondary: #1e2030;
+  --bg-tertiary: #282a3c;
+  --bg-page: #11121b;
+  --bg-elevated: #191a27;
+  --bg-soft-blue: rgba(200, 76, 90, .12);
+  --bg-soft-purple: rgba(217, 121, 130, .1);
+  --text-main: #f3f2ee;
+  --text-secondary: #c8c8d0;
+  --text-tertiary: #90929f;
+  --border-color: #303242;
+  --border-light: #262837;
+  --border-strong: #474a5c;
+  --topnav-bg: rgba(17, 18, 27, .97);
+  --topnav-border: rgba(255, 255, 255, .07);
+}
+
+/* Global background content: subtle, crisp, and non-obstructive. */
+.sq-layout::before {
+  opacity: .72 !important;
+  background:
+    radial-gradient(circle, rgba(200, 76, 90, .1) 1px, transparent 1.5px),
+    linear-gradient(rgba(32, 34, 49, .022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(32, 34, 49, .022) 1px, transparent 1px),
+    radial-gradient(circle at 86% 8%, rgba(217, 121, 130, .11), transparent 27%),
+    radial-gradient(circle at 7% 28%, rgba(200, 76, 90, .08), transparent 31%) !important;
+  background-size: 34px 34px, 52px 52px, 52px 52px, auto, auto !important;
+}
+
+.brand-icon { color: #fff !important; background: #202231 !important; }
+.nav-link.active { border-color: rgba(200, 76, 90, .13) !important; color: #c84c5a !important; background: rgba(200, 76, 90, .08) !important; }
+.nav-link.active::after { background: #c84c5a !important; }
+.user-avatar { background: linear-gradient(135deg, #c84c5a, #d97982) !important; box-shadow: 0 0 0 3px rgba(200, 76, 90, .1) !important; }
+.user-level-badge { color: #b43f4e !important; background: rgba(200, 76, 90, .09) !important; }
+
+.el-button--primary,
+.sq-layout :where(.cta-btn, .submit-btn, .refresh-btn, .add-task-btn, .map-empty-btn, .nl-gen-btn, .primary-btn, .start-btn, .action-btn, .practice-btn, .export-btn) {
+  border-color: #202231 !important;
+  color: #fff !important;
+  background: #202231 !important;
+}
+.el-button--primary:hover,
+.sq-layout :where(.cta-btn, .submit-btn, .refresh-btn, .add-task-btn, .map-empty-btn, .nl-gen-btn, .primary-btn, .start-btn, .action-btn, .practice-btn, .export-btn):hover {
+  border-color: #c84c5a !important;
+  background: #c84c5a !important;
+  box-shadow: 0 10px 28px rgba(200, 76, 90, .2) !important;
+}
+.el-input__wrapper.is-focus, .el-select__wrapper.is-focused { box-shadow: 0 0 0 1px #c84c5a inset, 0 0 0 4px rgba(200, 76, 90, .09) !important; }
+.el-tag { border-color: rgba(200, 76, 90, .13) !important; color: #b43f4e !important; background: rgba(200, 76, 90, .08) !important; }
+.el-tabs__active-bar { background: #c84c5a !important; }
+.el-tabs__item.is-active { color: #c84c5a !important; }
+.el-progress-bar__inner,
+:where(.task-bar-fill, .cp-fill, .pi-fill, .card-bar, .day-bar, .slot-bar, .rt-bar) { background: linear-gradient(90deg, #c84c5a, #d97982) !important; }
+
+.sq-layout :where(.stat-card, .score-card, .overview-card, .metric-card)::before { background: linear-gradient(180deg, #c84c5a, #c84c5a) !important; }
+.home-page :where(.welcome-banner, .hero-banner, .dashboard-hero) { background: linear-gradient(120deg, #202231, #34384f) !important; border-color: rgba(200, 76, 90, .2) !important; }
+.evaluation-page .summary-hero { background: linear-gradient(135deg, #fffefa, #f3f2ed) !important; border-color: rgba(200, 76, 90, .15) !important; }
+.option-item:hover, .option-item.selected, .nl-res-tab.active { border-color: #c84c5a !important; color: var(--text-main) !important; background: rgba(200, 76, 90, .07) !important; }
+.nl-tree-node:hover, .nl-tree-node.active { color: #c84c5a !important; background: rgba(200, 76, 90, .07) !important; }
+.chat-page-container :where(.user-message, .message.user .message-bubble) { background: #c84c5a !important; }
+
+/* Onboarding questionnaire */
+.onboarding-container {
+  position: relative;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle, rgba(200, 76, 90, .1) 1px, transparent 1.5px),
+    radial-gradient(circle at 8% 12%, rgba(217, 121, 130, .12), transparent 25%),
+    radial-gradient(circle at 92% 78%, rgba(200, 76, 90, .08), transparent 28%),
+    var(--bg-page) !important;
+  background-size: 36px 36px, auto, auto, auto !important;
+}
+.onboarding-container::before,
+.onboarding-container::after {
+  content: "";
+  position: fixed;
+  z-index: 0;
+  width: 180px;
+  height: 180px;
+  border: 1px solid rgba(200, 76, 90, .12);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.onboarding-container::before { left: -90px; top: 18%; box-shadow: 42px 42px 0 -1px rgba(200, 76, 90, .045); }
+.onboarding-container::after { right: -80px; bottom: 9%; box-shadow: -46px -34px 0 -1px rgba(217, 121, 130, .045); }
+.onboarding-container > * { position: relative; z-index: 1; }
+.onboarding-container :where(.q-card, .diag-q-card, .result-card) { border: 1px solid var(--border-color) !important; background: var(--bg-color) !important; box-shadow: var(--shadow-md) !important; }
+.onboarding-container :where(.step-badge, .sp-num, .step-num) { color: #fff !important; background: #c84c5a !important; }
+.onboarding-container :where(.q-option, .diag-option) { border-color: var(--border-color) !important; background: var(--bg-color) !important; }
+.onboarding-container :where(.q-option, .diag-option):hover { border-color: #d86b76 !important; transform: translateY(-1px); }
+.onboarding-container :where(.q-option.selected, .diag-option.selected) { border-color: #c84c5a !important; background: rgba(200, 76, 90, .07) !important; box-shadow: 0 0 0 3px rgba(200, 76, 90, .055); }
+.onboarding-container .selected .diag-opt-letter { border-color: #c84c5a !important; color: #fff !important; background: #c84c5a !important; }
+.onboarding-container :where(.strategy-box, .rec-type-tag) { color: #b43f4e !important; background: rgba(200, 76, 90, .07) !important; }
+
+
+
+/* Map and AI tutor are immersive workspaces, never centered page cards. */
+.map-view,
+.chat-page-container {
+  width: 100% !important;
+  max-width: none !important;
+  height: calc(100vh - var(--topnav-height, 64px)) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+@media (max-width: 760px) {
+  .onboarding-container { background-size: 44px 44px, auto, auto, auto !important; }
+  .onboarding-container::before, .onboarding-container::after { width: 110px; height: 110px; }
+}
+

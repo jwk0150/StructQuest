@@ -5,9 +5,8 @@
 已实现完整的**数字人老师在线讲解系统**，包含：
 - ✅ Live2D 数字人形象（左侧展示）
 - ✅ AI 对话交互（右侧聊天区）
-- ✅ TTS 语音合成（Edge TTS，免费）
-- ✅ 语音播放 + 口型同步动画
-- ✅ 多音色切换（6 种中文音色）
+- ✅ 讯飞虚拟人 SDK（前端直连，实时流）
+- ✅ 多音色切换
 - ✅ 实时流式输出（WebSocket）
 
 ---
@@ -42,9 +41,8 @@
 
 | 文件 | 操作 | 说明 |
 |---|---|---|
-| `services/tts.py` | **新增** | Edge TTS 语音合成服务 |
-| `main.py` | **修改** | WebSocket 增加 TTS 返回 + 音色 API |
-| `requirements.txt` | **修改** | 添加 edge-tts 依赖 |
+| `services/iflytek_virtual_human.py` | **新增** | 讯飞虚拟人 WebSocket 服务 |
+| `main.py` | **修改** | WebSocket 集成讯飞 TTS + 音色 API |
 
 ### 前端（Vue 3）
 
@@ -56,11 +54,16 @@
 ### 依赖
 
 ```bash
-# 后端（自动安装）
-pip install edge-tts>=6.1.9
+# 后端（讯飞虚拟人需在 .env 中配置）
+IFYTEK_VH_APP_ID=your_app_id
+IFYTEK_VH_API_KEY=your_api_key
+IFYTEK_VH_API_SECRET=your_api_secret
+IFYTEK_VH_SCENE_ID=your_scene_id
+IFYTEK_VH_AVATAR_ID=your_avatar_id
 
 # 前端（已安装）
 npm install pixi.js@7 pixi-live2d-display
+npm install @/lib/avatar-sdk-web
 ```
 
 ---
@@ -71,13 +74,14 @@ npm install pixi.js@7 pixi-live2d-display
 
 ```bash
 cd struct-quest-backend
-pip install -r requirements.txt  # 确保 edge-tts 已安装
+pip install -r requirements.txt
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8008 --reload
 ```
 
-后端会启动在 `http://localhost:8008`，提供以下新接口：
+后端会启动在 `http://localhost:8008`，提供以下接口：
 
-- `GET /api/tts/voices` - 获取可用音色列表
+- `GET /api/iflytek/status` - 讯飞虚拟人服务状态
+- `GET /api/iflytek/voices` - 获取可用音色列表
 - `WS /ws/chat` - WebSocket 聊天（支持 TTS 参数）
 
 ### 2. 启动前端开发服务器
@@ -127,10 +131,10 @@ npm run dev
 
 ### 关键技术点：
 
-1. **TTS 语音合成**
-   - 使用微软 Edge TTS（免费、无需 API Key）
-   - 支持 6 种高质量中文音色
-   - 返回 base64 编码 MP3（方便 WebSocket 传输）
+1. **讯飞虚拟人 TTS**
+   - 使用讯飞虚拟人 WebSocket API
+   - 前端 SDK 直连，实时流式渲染
+   - 支持多种中文发音人
 
 2. **Live2D 渲染**
    - 基于 PixiJS v7 + pixi-live2d-display
@@ -150,7 +154,8 @@ npm run dev
   "messages": [...],
   "provider": "openai",
   "voice": "xiaoxiao",
-  "enable_tts": true
+  "enable_tts": true,
+  "tts_mode": "iflytek"
 }
 ```
 
@@ -158,23 +163,15 @@ npm run dev
 ```json
 {"type": "chunk", "content": "..."}           // 流式文字
 {"type": "done", "full_content": "..."}       // 文字结束
-{"type": "tts_start"}                          // 开始合成语音
-{"type": "tts_audio", "audio_base64": "...", "format": "mp3"}  // 音频数据
+{"type": "tts_start"}                          // 开始合成语音（讯飞SDK处理）
 {"type": "tts_error", "message": "..."}       // TTS 错误
 ```
 
 ---
 
-## 可用音色列表
+## 语音方案
 
-| Key | 名称 | 适用场景 |
-|-----|------|---------|
-| `xiaoxiao` | 温柔女声 | 默认，温柔亲切讲解 |
-| `yunxi` | 阳光男声 | 充满活力的教学 |
-| `xiaoyi` | 知性女声 | 学术性内容讲解 |
-| `yunyang` | 沉稳男声 | 严肃专业的内容 |
-| `xiaobei` | 活泼女声 | 轻松愉快的氛围 |
-| `xiaozhen` | 亲和女声 | 自然像朋友聊天 |
+采用**讯飞虚拟人 SDK**（前端直连，后端仅提供配置），数字人实时渲染，无需后端合成音频。
 
 ---
 

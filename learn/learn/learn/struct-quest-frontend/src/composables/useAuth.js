@@ -37,7 +37,7 @@ export function useAuth() {
       
       // Navigate based on onboarding status
       if (userData.hasCompletedOnboarding) {
-        router.push('/dashboard')
+        router.push('/app')
       } else {
         router.push('/onboarding')
       }
@@ -88,7 +88,7 @@ export function useAuth() {
     
     removeStorage(STORAGE_KEYS.TOKEN)
     sessionStore.logout()
-    router.push('/')
+    router.push('/login')
   }
 
   /**

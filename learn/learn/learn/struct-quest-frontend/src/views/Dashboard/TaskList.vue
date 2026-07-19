@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="tasks-panel">
     <div class="panel-header">
       <h3 class="panel-title">
@@ -94,7 +94,7 @@ defineEmits(['goNode'])
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  background: rgba(99,102,241,0.08);
+  background: rgba(200,76,90,0.08);
   color: var(--color-primary);
 }
 .ai-badge {
@@ -102,7 +102,7 @@ defineEmits(['goNode'])
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(139,92,246,0.08);
+  background: rgba(217,121,130,0.08);
   color: var(--color-accent-purple);
   letter-spacing: 0.03em;
 }
@@ -135,8 +135,8 @@ defineEmits(['goNode'])
   animation: pulseRing 2s ease-in-out infinite;
 }
 @keyframes pulseRing {
-  0%,100%{box-shadow:0 0 0 0 rgba(139,92,246,0.4)}
-  50%{box-shadow:0 0 0 7px rgba(139,92,246,0)}
+  0%,100%{box-shadow:0 0 0 0 rgba(217,121,130,0.4)}
+  50%{box-shadow:0 0 0 7px rgba(217,121,130,0)}
 }
 .dot-pending {
   border: 2px solid var(--border-color);
@@ -184,7 +184,7 @@ defineEmits(['goNode'])
   border-radius: 999px;
 }
 .tag-done { background: rgba(16,185,129,0.1); color: #059669; }
-.tag-active { background: rgba(139,92,246,0.08); color: var(--color-accent-purple); }
+.tag-active { background: rgba(217,121,130,0.08); color: var(--color-accent-purple); }
 .tag-pending { background: var(--bg-tertiary); color: var(--text-tertiary); }
 .task-go { color: var(--text-tertiary); opacity: 0; transition: all var(--transition-fast); }
 .task-row:hover .task-go { opacity: 1; transform: translateX(2px); }
@@ -199,3 +199,4 @@ defineEmits(['goNode'])
   font-size: 13px;
 }
 </style>
+

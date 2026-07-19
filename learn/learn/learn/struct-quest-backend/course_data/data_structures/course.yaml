@@ -1,0 +1,30 @@
+course_id: data_structures
+course_name: 数据结构
+version: "2026.07"
+language: zh-CN
+source_type: initial_course_corpus
+chapters:
+  - file: chapters/01_intro.md
+    chapter: ch01_intro
+    title: 绪论与算法分析
+  - file: chapters/02_linear_list.md
+    chapter: ch02_linear_list
+    title: 线性表
+  - file: chapters/03_stack_queue.md
+    chapter: ch03_stack_queue
+    title: 栈和队列
+  - file: chapters/04_string_array.md
+    chapter: ch04_string_array
+    title: 串、数组和广义表
+  - file: chapters/05_tree.md
+    chapter: ch05_tree
+    title: 树和二叉树
+  - file: chapters/06_graph.md
+    chapter: ch06_graph
+    title: 图
+  - file: chapters/07_search.md
+    chapter: ch07_search
+    title: 查找
+  - file: chapters/08_sort.md
+    chapter: ch08_sort
+    title: 排序

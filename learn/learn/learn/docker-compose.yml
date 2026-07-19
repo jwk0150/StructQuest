@@ -29,6 +29,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - MANIM_ENABLED=true
       - MANIM_OUTPUT_DIR=/app/data/videos
+      - CHROMA_DB_PATH=/app/data/chroma
     volumes:
       - manim_videos:/app/data/videos
       - pptx_files:/app/static/pptx

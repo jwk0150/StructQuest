@@ -377,10 +377,62 @@ class ProfileAgent(BaseAgent):
     #  每日策略生成
     # ═══════════════════════════════════════════
 
+    STRATEGY_PROMPT = """你是一位学习策略师。请根据学生画像生成今日学习策略建议（50-80字）。
+
+## 学生画像
+- 能力等级：{ability_level}
+- 学习节奏：{rhythm}
+- 专注度：{focus}/100
+- 强项：{strengths}
+- 薄弱点：{weaknesses}
+- 掌握度低的主题：{low_mastery_topics}
+- 资源偏好：{pref_type}
+- 信心指数：{confidence}/100
+
+## 要求
+请直接输出一句具体、可执行的学习策略建议。要提及具体知识点，不要泛泛而谈。
+例如："今天优先用视频讲解攻克栈的括号匹配应用（掌握度仅35%），配合2道代码练习巩固，完成后可进入二叉树层序遍历。"
+只输出策略文本，不要引号包裹，不要JSON。"""
+
     def _build_daily_strategy(self, profile: Dict) -> str:
-        """根据当前画像生成每日学习策略"""
+        """根据当前画像生成每日学习策略（★ 优先用 LLM，回落规则）"""
         focus = float(profile.get("focus_score", 75))
         rhythm = profile.get("learning_rhythm", "持续型")
+
+        # 尝试 LLM 生成
+        try:
+            ability_level = profile.get("ability_level", "beginner")
+            strengths = profile.get("strengths", [])
+            weaknesses = profile.get("weaknesses", [])
+            confidence = float(profile.get("confidence_score", 60))
+            mastery = profile.get("knowledge_mastery", {})
+            low_mastery = [(t, float(s)) for t, s in mastery.items() if float(s) < 50]
+            low_mastery_topics = "、".join(f"{t}({s:.0f}%)" for t, s in sorted(low_mastery, key=lambda x: x[1])[:3]) if low_mastery else "无"
+
+            prefs = profile.get("resource_preferences", {})
+            pref_type = max(prefs, key=prefs.get) if prefs else "综合学习"
+
+            prompt = self.STRATEGY_PROMPT.format(
+                ability_level={"beginner":"初学", "intermediate":"中等", "advanced":"进阶", "expert":"专家"}.get(ability_level, ability_level),
+                rhythm=rhythm,
+                focus=focus,
+                strengths="、".join(strengths[:3]) if strengths else "待发现",
+                weaknesses="、".join(weaknesses[:3]) if weaknesses else "暂无",
+                low_mastery_topics=low_mastery_topics,
+                pref_type=pref_type,
+                confidence=confidence,
+            )
+
+            response = self._call_llm(
+                [{"role": "user", "content": prompt}],
+                temperature=0.7, max_tokens=256,
+            )
+            if response and len(response.strip()) >= 10:
+                return response.strip().strip('"').strip("'")
+        except Exception as e:
+            logger.warning("LLM 每日策略生成失败: %s", e)
+
+        # 回落：规则生成
         pref_type = ""
         prefs = profile.get("resource_preferences", {})
         if prefs:

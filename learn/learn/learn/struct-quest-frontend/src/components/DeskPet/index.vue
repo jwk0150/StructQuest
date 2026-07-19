@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     ref="petEl"
     class="desk-pet"
@@ -63,14 +63,14 @@
 
         <!-- Ports -->
         <g ref="portsRef" class="pet-ports">
-          <circle cx="31" cy="70" r="5" fill="white" stroke="#6366f1" stroke-width="1.5"/>
-          <circle cx="31" cy="70" r="2" fill="#6366f1"/>
-          <circle cx="89" cy="70" r="5" fill="white" stroke="#6366f1" stroke-width="1.5"/>
-          <circle cx="89" cy="70" r="2" fill="#6366f1"/>
+          <circle cx="31" cy="70" r="5" fill="white" stroke="#c84c5a" stroke-width="1.5"/>
+          <circle cx="31" cy="70" r="2" fill="#c84c5a"/>
+          <circle cx="89" cy="70" r="5" fill="white" stroke="#c84c5a" stroke-width="1.5"/>
+          <circle cx="89" cy="70" r="2" fill="#c84c5a"/>
         </g>
 
         <!-- Body -->
-        <circle ref="bodyRef" cx="60" cy="72" r="30" fill="url(#bodyGrad)" stroke="#6366f1" stroke-width="2.5" class="pet-body-circle"/>
+        <circle ref="bodyRef" cx="60" cy="72" r="30" fill="url(#bodyGrad)" stroke="#c84c5a" stroke-width="2.5" class="pet-body-circle"/>
 
         <!-- Blush -->
         <circle cx="44" cy="80" r="6" fill="url(#blushGrad)"/>
@@ -101,10 +101,10 @@
 
         <!-- Effects -->
         <g ref="thinkRef" class="pet-effect" style="display:none">
-          <circle cx="60" cy="12" r="8" fill="white" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 2">
+          <circle cx="60" cy="12" r="8" fill="white" stroke="#c84c5a" stroke-width="1.5" stroke-dasharray="4 2">
             <animateTransform attributeName="transform" type="rotate" from="0 60 12" to="360 60 12" dur="4s" repeatCount="indefinite"/>
           </circle>
-          <text x="57" y="15" font-size="11" fill="#6366f1" font-weight="bold">?</text>
+          <text x="57" y="15" font-size="11" fill="#c84c5a" font-weight="bold">?</text>
         </g>
         <g ref="sleepRef" class="pet-effect" style="display:none">
           <text x="80" y="20" font-size="8" fill="#8BBCFF" font-weight="bold" opacity="0.4">z</text>
@@ -116,8 +116,8 @@
           <text x="95" y="45" font-size="8" fill="#FFB347">*</text>
         </g>
         <g ref="teachRef" class="pet-effect" style="display:none">
-          <line x1="31" y1="70" x2="8" y2="90" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.6"/>
-          <line x1="89" y1="70" x2="112" y2="90" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.6"/>
+          <line x1="31" y1="70" x2="8" y2="90" stroke="#c84c5a" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.6"/>
+          <line x1="89" y1="70" x2="112" y2="90" stroke="#c84c5a" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.6"/>
           <circle cx="8" cy="90" r="3" fill="#A8D4FF"/>
           <circle cx="112" cy="90" r="3" fill="#A8D4FF"/>
         </g>
@@ -471,7 +471,7 @@ function startAutoTimer() {
 onMounted(() => {
   petStore.recordInteraction()
   startAutoTimer()
-  if (route.path.startsWith('/learn/')) {
+  if (route.path.startsWith('/app/learn/')) {
     petStore.isLearningPage = true
     petStore.setMood('teaching')
   }
@@ -509,9 +509,9 @@ onBeforeUnmount(() => {
   gap: 5px;
   padding: 4px 12px 4px 8px;
   background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(217,121,130, 0.2);
   border-radius: 20px;
-  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.12);
+  box-shadow: 0 4px 16px rgba(217,121,130, 0.12);
   white-space: nowrap;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -519,7 +519,7 @@ onBeforeUnmount(() => {
 }
 .title-badge:hover {
   transform: translateX(-50%) translateY(-2px);
-  box-shadow: 0 6px 22px rgba(139, 92, 246, 0.18);
+  box-shadow: 0 6px 22px rgba(217,121,130, 0.18);
 }
 .title-badge-icon {
   font-size: 14px;
@@ -546,7 +546,7 @@ onBeforeUnmount(() => {
 }
 .desk-pet:hover .pet-svg-wrapper {
   transform: scale(1.12);
-  filter: brightness(1.08) drop-shadow(0 6px 20px rgba(99,102,241,0.3));
+  filter: brightness(1.08) drop-shadow(0 6px 20px rgba(200,76,90,0.3));
 }
 .pet-svg { display: block; width: 100%; height: auto; overflow: visible; }
 
@@ -573,14 +573,14 @@ onBeforeUnmount(() => {
   top: -32px; left: 50%;
   transform: translateX(-50%);
   padding: 4px 12px;
-  background: rgba(99, 102, 241, 0.92);
+  background: rgba(200,76,90, 0.92);
   color: #fff;
   font-size: 11px;
   font-weight: 500;
   border-radius: 10px;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 3px 14px rgba(99,102,241,0.25);
+  box-shadow: 0 3px 14px rgba(200,76,90,0.25);
 }
 .pet-tooltip::after {
   content: '';
@@ -590,7 +590,7 @@ onBeforeUnmount(() => {
   width: 0; height: 0;
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
-  border-top: 5px solid rgba(99, 102, 241, 0.92);
+  border-top: 5px solid rgba(200,76,90, 0.92);
 }
 
 .bubble-pop-enter-active { animation: bubbleIn 0.25s ease-out; }

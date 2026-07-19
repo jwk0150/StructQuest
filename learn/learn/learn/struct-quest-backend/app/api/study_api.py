@@ -16,6 +16,8 @@ from app.models.knowledge_graph import KnowledgeNode
 from app.models.exam_result import ExamResult
 from app.services.learning_record_service import learning_record_service
 import json
+import os
+import re
 
 router = APIRouter(prefix="/api/study", tags=["study"])
 
@@ -113,6 +115,69 @@ async def stop_study_session(
         "message": "学习会话已结束",
         "duration_seconds": session.duration_seconds,
     }
+
+
+@router.get("/sessions")
+async def get_recent_study_sessions(
+    limit: int = 5,
+    user: User = Depends(get_required_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """返回练习中心需要的最近学习记录。"""
+    limit = max(1, min(limit, 20))
+    result = await db.execute(
+        select(StudySession)
+        .where(StudySession.user_id == user.id)
+        .order_by(StudySession.started_at.desc())
+        .limit(limit)
+    )
+    sessions = result.scalars().all()
+    if not sessions:
+        return {"sessions": [], "total": 0}
+
+    node_ids = list({session.node_id for session in sessions if session.node_id})
+    nodes = {}
+    progress_by_node = {}
+    exams_by_node = {}
+    if node_ids:
+        node_result = await db.execute(
+            select(KnowledgeNode).where(KnowledgeNode.id.in_(node_ids))
+        )
+        nodes = {node.id: node for node in node_result.scalars().all()}
+
+        progress_result = await db.execute(
+            select(LearningProgress).where(
+                LearningProgress.user_id == user.id,
+                LearningProgress.node_id.in_(node_ids),
+            )
+        )
+        progress_by_node = {
+            progress.node_id: progress for progress in progress_result.scalars().all()
+        }
+
+        exam_result = await db.execute(
+            select(ExamResult).where(
+                ExamResult.user_id == user.id,
+                ExamResult.node_id.in_(node_ids),
+            )
+        )
+        exams_by_node = {exam.node_id: exam for exam in exam_result.scalars().all()}
+
+    items = []
+    for session in sessions:
+        node = nodes.get(session.node_id)
+        progress = progress_by_node.get(session.node_id)
+        exam = exams_by_node.get(session.node_id)
+        progress_value = float(getattr(progress, "progress", 0) or 0)
+        items.append({
+            "id": session.id,
+            "nodeName": node.title if node else session.node_id,
+            "nodeId": session.node_id,
+            "progress": max(0.0, min(progress_value / 100, 1.0)),
+            "time": (session.ended_at or session.started_at).isoformat(),
+            "correctRate": max(0.0, min(float(exam.score) / 100, 1.0)) if exam else None,
+        })
+    return {"sessions": items, "total": len(items)}
 
 
 # ════════════════════════════════════════════════════════
@@ -284,6 +349,143 @@ async def get_study_stats(
         "hot_topics": hot_topics,
         "today_tasks": today_tasks,
     }
+
+
+AI_ADVICE_PROMPT = """你是一位温暖的、善于鼓励的学习教练。请根据学生的学习数据生成今日个性化学习建议。
+
+## 学生数据
+- 能力等级：{ability_level}
+- 薄弱点：{weaknesses}
+- 知识掌握概况：{mastery_summary}
+- 当前策略：{daily_strategy}
+- 连续学习：{streak}天
+- 今日学习：{today_minutes}分钟
+- 本周活跃：{week_active}天
+
+## 要求
+请以 JSON 格式输出：
+```json
+{{
+    "advice": "一段50-80字的今日学习建议，要具体、可执行、有针对性（提及具体知识点）",
+    "motivation": "一句温暖的鼓励（15-25字）"
+}}
+```
+只输出 JSON，不要其他内容。"""
+
+
+async def _generate_ai_advice(
+    user_id, weaknesses, mastery, daily_strategy, ability_level,
+    streak, today_minutes, week_active_count
+):
+    """★ 用 LLM 生成个性化每日建议，失败时回退到规则"""
+    # 先尝试 LLM
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+        import openai as openai_lib
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_BASE_URL")
+        if api_key:
+            # 整理 mastery 摘要
+            mastery_summary = "尚无数据"
+            if mastery:
+                low_items = [(k, float(v)) for k, v in mastery.items() if float(v) < 60]
+                if low_items:
+                    mastery_summary = "薄弱: " + "、".join(f"{k}({v:.0f})" for k, v in sorted(low_items, key=lambda x: x[1])[:3])
+                else:
+                    avg = sum(float(v) for v in mastery.values()) / max(len(mastery), 1)
+                    mastery_summary = f"整体良好(均分{avg:.0f})"
+
+            prompt = AI_ADVICE_PROMPT.format(
+                ability_level={"beginner":"初学", "intermediate":"中等", "advanced":"进阶", "expert":"专家"}.get(ability_level, ability_level),
+                weaknesses="、".join(weaknesses[:3]) if weaknesses else "暂无",
+                mastery_summary=mastery_summary,
+                daily_strategy=daily_strategy or "持续稳定学习",
+                streak=streak,
+                today_minutes=today_minutes,
+                week_active=week_active_count,
+            )
+
+            client = openai_lib.OpenAI(api_key=api_key, base_url=base_url)
+            response = client.chat.completions.create(
+                model=os.getenv("LLM_MODEL", "deepseek-chat"),
+                messages=[
+                    {"role": "system", "content": "你是一位温暖的学习教练。只输出JSON。"},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.75,
+                max_tokens=512,
+            )
+            raw = response.choices[0].message.content.strip()
+            json_match = re.search(r'\{[\s\S]*\}', raw)
+            if json_match:
+                result = json.loads(json_match.group())
+                advice = result.get("advice", "")
+                motivation = result.get("motivation", "")
+                if advice:
+                    return advice, motivation
+    except Exception as e:
+        print(f"[AI-Advice] LLM 生成失败: {e}")
+
+    # 回落：规则生成
+    return _fallback_advice(weaknesses, mastery, daily_strategy, ability_level,
+                            streak, today_minutes, week_active_count)
+
+
+def _fallback_advice(weaknesses, mastery, daily_strategy, ability_level,
+                     streak, today_minutes, week_active_count):
+    """LLM 不可用时的规则生成（原逻辑保留）"""
+    advice_parts = []
+
+    if weaknesses:
+        top_weak = weaknesses[:2]
+        advice_parts.append(f"你的薄弱点集中在{'、'.join(top_weak)}，建议每天安排30分钟专项练习")
+
+    if mastery:
+        low_mastery = [(k, v) for k, v in mastery.items() if float(v) < 50]
+        sorted_low = sorted(low_mastery, key=lambda x: x[1])
+        if sorted_low:
+            urgent = sorted_low[0]
+            advice_parts.append(f"「{urgent[0]}」掌握度仅{urgent[1]:.0f}%，需要优先攻克")
+        else:
+            high_avg = sum(float(v) for v in mastery.values()) / max(len(mastery), 1)
+            if high_avg >= 70:
+                advice_parts.append("知识掌握良好，可以挑战更高难度的内容")
+
+    if streak >= 7:
+        advice_parts.append(f"已连续学习{streak}天，节奏很棒，保持下去")
+    elif streak >= 3:
+        advice_parts.append(f"连续{streak}天学习，状态持续回升中")
+    elif streak == 0 and week_active_count <= 1:
+        level_hint = {"beginner": "从「数据结构基本概念」入手", "intermediate": "试试二叉树遍历", "advanced": "挑战红黑树或图算法", "expert": "研究B+树底层实现"}
+        advice_parts.append(f"最近学习较少，{level_hint.get(ability_level, '建议从基础开始')}，重新找回状态")
+
+    if today_minutes >= 60:
+        advice_parts.append("今天已学习超过1小时，劳逸结合很重要")
+    elif today_minutes > 0:
+        advice_parts.append(f"今天已学习{today_minutes}分钟，继续保持节奏")
+
+    if daily_strategy and daily_strategy not in advice_parts:
+        advice_parts.append(daily_strategy)
+
+    if not advice_parts:
+        advice_parts.append("开启你的数据结构学习之旅，从基础知识开始稳步前进")
+
+    advice_text = "。".join(advice_parts[:3]) + "。"
+
+    if streak >= 14:
+        motivation = "你已经坚持两周了，距离掌握数据结构又近了一大步！"
+    elif streak >= 7:
+        motivation = "一周的坚持很了不起，数据结构的大门已经为你敞开"
+    elif streak >= 3:
+        motivation = "坚持就是胜利，每一个基础概念都是攀登高峰的阶梯"
+    elif today_minutes > 0:
+        motivation = "每一分钟的学习都在为未来添砖加瓦"
+    else:
+        motivation = "种一棵树最好的时间是十年前，其次是现在 —— 开始学习吧"
+
+    return advice_text, motivation
 
 
 async def _calc_streak(db: AsyncSession, user_id: int) -> int:
@@ -691,62 +893,11 @@ async def get_ai_advice(
     today_seconds = result.scalar() or 0
     today_minutes = today_seconds // 60
 
-    # 4. 生成 AI 建议
-    advice_parts = []
-
-    # 4a. 基于薄弱点
-    if weaknesses:
-        top_weak = weaknesses[:2]
-        advice_parts.append(f"你的薄弱点集中在{'、'.join(top_weak)}，建议每天安排30分钟专项练习")
-
-    # 4b. 基于知识掌握度
-    if mastery:
-        low_mastery = [(k, v) for k, v in mastery.items() if float(v) < 50]
-        sorted_low = sorted(low_mastery, key=lambda x: x[1])
-        if sorted_low:
-            urgent = sorted_low[0]
-            advice_parts.append(f"「{urgent[0]}」掌握度仅{urgent[1]:.0f}%，需要优先攻克")
-        else:
-            high_avg = sum(float(v) for v in mastery.values()) / max(len(mastery), 1)
-            if high_avg >= 70:
-                advice_parts.append("知识掌握良好，可以挑战更高难度的内容")
-
-    # 4c. 基于学习节奏
-    if streak >= 7:
-        advice_parts.append(f"已连续学习{streak}天，节奏很棒，保持下去")
-    elif streak >= 3:
-        advice_parts.append(f"连续{streak}天学习，状态持续回升中")
-    elif streak == 0 and week_active_count <= 1:
-        level_hint = {"beginner": "从「数据结构基本概念」入手", "intermediate": "试试二叉树遍历", "advanced": "挑战红黑树或图算法", "expert": "研究B+树底层实现"}
-        advice_parts.append(f"最近学习较少，{level_hint.get(ability_level, '建议从基础开始')}，重新找回状态")
-
-    # 4d. 基于今日时长
-    if today_minutes >= 60:
-        advice_parts.append("今天已学习超过1小时，劳逸结合很重要")
-    elif today_minutes > 0:
-        advice_parts.append(f"今天已学习{today_minutes}分钟，继续保持节奏")
-
-    # 4e. 基于 daily_strategy
-    if daily_strategy and daily_strategy not in advice_parts:
-        advice_parts.append(daily_strategy)
-
-    # 组装
-    if not advice_parts:
-        advice_parts.append("开启你的数据结构学习之旅，从基础知识开始稳步前进")
-
-    advice_text = "。".join(advice_parts[:3]) + "。"
-
-    # 5. 激励话语
-    if streak >= 14:
-        motivation = "你已经坚持两周了，距离掌握数据结构又近了一大步！"
-    elif streak >= 7:
-        motivation = "一周的坚持很了不起，数据结构的大门已经为你敞开"
-    elif streak >= 3:
-        motivation = "坚持就是胜利，每一个基础概念都是攀登高峰的阶梯"
-    elif today_minutes > 0:
-        motivation = "每一分钟的学习都在为未来添砖加瓦"
-    else:
-        motivation = "种一棵树最好的时间是十年前，其次是现在 —— 开始学习吧"
+    # 4. ★ 用 LLM 生成个性化 AI 建议（回落兜底到规则）
+    advice_text, motivation = await _generate_ai_advice(
+        user_id, weaknesses, mastery, daily_strategy, ability_level,
+        streak, today_minutes, week_active_count
+    )
 
     return {
         "advice": advice_text,

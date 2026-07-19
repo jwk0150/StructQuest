@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="stats-stack">
     <!-- ① Today Overview -->
     <div class="stat-card today-overview">
@@ -21,12 +21,12 @@
         </div>
         <div class="overview-meta">
           <div class="meta-row">
-            <span class="meta-dot" style="--dot: #8b5cf6"></span>
+            <span class="meta-dot" style="--dot: #d97982"></span>
             <span class="meta-label">知识点</span>
             <span class="meta-val">{{ knowledgeCount }}</span>
           </div>
           <div class="meta-row">
-            <span class="meta-dot" style="--dot: #6366f1"></span>
+            <span class="meta-dot" style="--dot: #c84c5a"></span>
             <span class="meta-label">任务</span>
             <span class="meta-val">{{ taskCount }}</span>
           </div>
@@ -140,7 +140,7 @@ onMounted(() => {
 }
 .stat-card:hover {
   box-shadow: var(--shadow-card-hover);
-  border-color: rgba(99,102,241,0.08);
+  border-color: rgba(200,76,90,0.08);
 }
 
 .card-label {
@@ -246,11 +246,11 @@ onMounted(() => {
   transition: all var(--transition-fast);
 }
 .streak-dot.active {
-  background: rgba(99,102,241,0.12);
+  background: rgba(200,76,90,0.12);
 }
 .streak-dot.today {
   background: var(--color-primary);
-  box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+  box-shadow: 0 2px 8px rgba(200,76,90,0.3);
 }
 
 /* ── AI Advice ── */
@@ -299,7 +299,7 @@ onMounted(() => {
 }
 .path-step-dot.current {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+  box-shadow: 0 0 0 3px rgba(200,76,90,0.12);
 }
 .path-step-dot.current::after {
   content: '';
@@ -323,3 +323,4 @@ onMounted(() => {
   color: var(--text-tertiary);
 }
 </style>
+

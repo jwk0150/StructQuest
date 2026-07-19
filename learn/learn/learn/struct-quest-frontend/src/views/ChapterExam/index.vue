@@ -10,10 +10,15 @@
     <div v-else-if="!submitted" class="exam-content">
       <div class="exam-header">
         <div class="exam-back">
-          <router-link :to="'/map'" class="back-link">&larr; 返回知识图谱</router-link>
+          <a class="back-link" @click="goBack">&larr; 返回上一级</a>
         </div>
-        <h1>章节测试：{{ nodeTitle }}</h1>
-        <p class="exam-desc">共 {{ questions.length }} 题，每题一个正确答案</p>
+        <h1>{{ pageHeading }}：{{ nodeTitle }}</h1>
+        <p class="exam-desc">
+          共 {{ questions.length }} 题
+          <template v-if="typeCounts.choice"> · {{ typeCounts.choice }} 选择</template>
+          <template v-if="typeCounts.blank"> · {{ typeCounts.blank }} 填空</template>
+          <template v-if="typeCounts.coding"> · {{ typeCounts.coding }} 编程</template>
+        </p>
       </div>
 
       <!-- 错误提示 -->
@@ -22,41 +27,13 @@
         <span>{{ errorMsg }}</span>
       </div>
 
-      <div class="exam-body">
-        <div
-          v-for="(q, idx) in questions"
-          :key="q.id"
-          class="question-card"
-          :class="{ 'has-answer': answers[q.id] !== undefined }"
-        >
-          <div class="question-num">第 {{ idx + 1 }} 题</div>
-          <h3 class="question-text">{{ q.question }}</h3>
-          <div class="option-list">
-            <div
-              v-for="(opt, oi) in q.options"
-              :key="oi"
-              class="option-item"
-              :class="{ selected: answers[q.id] === oi }"
-              @click="selectAnswer(q.id, oi)"
-            >
-              <span class="option-radio">{{ answers[q.id] === oi ? '●' : '○' }}</span>
-              <span class="option-text">{{ String.fromCharCode(65 + oi) }}. {{ opt }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="exam-footer">
-        <div class="progress-info">已完成 {{ answeredCount }} / {{ questions.length }} 题</div>
-        <button
-          class="submit-btn"
-          :disabled="answeredCount < questions.length || submitting"
-          @click="handleSubmit"
-        >
-          <span v-if="submitting" class="btn-loading"></span>
-          {{ submitting ? '提交中...' : '提交测试' }}
-        </button>
-      </div>
+      <ExamWorkspace
+        :questions="questions"
+        :answers="answers"
+        :submitting="submitting"
+        @answer="({ id, value }) => selectAnswer(id, value)"
+        @submit="handleSubmit"
+      />
     </div>
 
     <!-- 结果页面 -->
@@ -83,14 +60,24 @@
           <div v-for="(d, idx) in result.details" :key="d.id" class="detail-item" :class="{ correct: d.is_correct, wrong: !d.is_correct }">
             <div class="detail-q">{{ idx + 1 }}. {{ d.question }}</div>
             <div class="detail-result">{{ d.is_correct ? '✅ 正确' : '❌ 错误' }}</div>
-            <div v-if="!d.is_correct" class="detail-explanation">解析：{{ d.explanation }}</div>
+            <template v-if="!d.is_correct">
+              <div class="detail-explanation">解析：{{ d.explanation }}</div>
+              <div v-if="d.type !== 'choice'" class="detail-answer">
+                参考答案：
+                <pre v-if="d.type === 'coding'">{{ d.correct_answer }}</pre>
+                <span v-else>{{ d.correct_answer }}</span>
+              </div>
+            </template>
+            <div v-if="d.type === 'coding' && d.grading_note" class="detail-grading">
+              评阅方式：{{ d.grading_note }}
+            </div>
           </div>
         </div>
 
         <div class="result-actions">
-          <router-link to="/map" class="btn-back">返回知识图谱</router-link>
+          <a class="btn-back" @click="goBack">返回上一级</a>
           <button class="btn-retake" @click="retryExam">重新测试</button>
-          <router-link :to="'/learn/' + $route.params.nodeId" class="btn-retry">继续学习</router-link>
+          <router-link :to="'/app/learn/' + $route.params.nodeId" class="btn-retry">继续学习</router-link>
         </div>
       </div>
     </div>
@@ -99,10 +86,12 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onActivated, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { http } from '../../utils/request'
+import ExamWorkspace from '../../components/ExamWorkspace.vue'
 
 const route = useRoute()
+const router = useRouter()
 
 const loading = ref(true)
 const nodeTitle = ref('')
@@ -113,7 +102,43 @@ const result = ref({})
 const submitting = ref(false)
 const errorMsg = ref('')
 
-const answeredCount = computed(() => Object.keys(answers).length)
+const pageHeading = computed(() => ({
+  coding: '编程实战',
+  mixed: 'AI 混合练习',
+  exam: '考研模式',
+  mock: '模拟测试',
+  challenge: '限时挑战',
+})[route.query.mode] || '章节测试')
+
+const typeCounts = computed(() => {
+  const counts = { choice: 0, blank: 0, coding: 0 }
+  questions.value.forEach(q => {
+    const t = q.type || 'choice'
+    counts[t] = (counts[t] || 0) + 1
+  })
+  return counts
+})
+
+const answeredCount = computed(() => {
+  return questions.value.filter(q => {
+    const ans = answers[q.id]
+    return ans !== undefined && ans !== '' && ans !== null
+  }).length
+})
+
+function typeLabel(type) {
+  const map = { choice: '选择题', blank: '填空题', coding: '编程题' }
+  return map[type] || '题目'
+}
+
+// ★ 返回上一级（优先用浏览器历史，降级到练习中心）
+function goBack() {
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/app/practice')
+  }
+}
 
 // ★ 清理所有答案和错误
 function resetAnswers() {
@@ -121,17 +146,32 @@ function resetAnswers() {
   errorMsg.value = ''
 }
 
-// ★ 选择答案
-function selectAnswer(qId, optionIndex) {
+// ★ 选择/输入答案（支持choice索引 + blank字符串 + coding字符串）
+function selectAnswer(qId, value) {
   errorMsg.value = ''
-  answers[qId] = optionIndex
+  answers[qId] = value
 }
 
 // ★ 加载题目
 async function loadQuestions(nodeId) {
   loading.value = true
   try {
-    const res = await http.get(`/exam/${nodeId}/questions`)
+    const requestedMode = ['mixed', 'exam', 'coding', 'mock', 'challenge'].includes(route.query.mode)
+      ? route.query.mode
+      : 'mixed'
+    const defaultCounts = { coding: 3, exam: 10, mock: 15, mixed: 8, challenge: 5 }
+    const rawCount = Number(route.query.count) || defaultCounts[requestedMode] || 8
+    const requestedCount = Math.max(3, Math.min(rawCount, 20))
+    const requestedDifficulty = ['easy', 'balanced', 'medium', 'hard'].includes(route.query.difficulty)
+      ? route.query.difficulty
+      : undefined
+    const res = await http.get(`/exam/${nodeId}/questions`, {
+      params: {
+        count: requestedCount,
+        difficulty: requestedDifficulty,
+        mode: requestedMode,
+      },
+    })
     nodeTitle.value = res.node_title || nodeId
     questions.value = res.questions || []
   } catch (e) {
@@ -155,7 +195,8 @@ onActivated(() => {
 })
 
 // ★ 路由参数变化（同一组件跳到不同的 nodeId）
-watch(() => route.params.nodeId, (newId) => {
+watch(() => route.fullPath, () => {
+  const newId = route.params.nodeId
   if (newId) {
     submitted.value = false
     result.value = {}
@@ -221,7 +262,7 @@ async function handleSubmit() {
 
 <style lang="scss" scoped>
 .exam-container {
-  max-width: 800px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 32px 24px 48px;
   min-height: 100vh;
@@ -245,7 +286,7 @@ async function handleSubmit() {
 
 .exam-header {
   margin-bottom: 32px;
-  .back-link { font-size: 14px; color: var(--color-primary); text-decoration: none; &:hover { text-decoration: underline; } }
+  .back-link { font-size: 14px; color: var(--color-primary); text-decoration: none; cursor: pointer; &:hover { text-decoration: underline; } }
   h1 { font-size: 28px; margin: 16px 0 8px; }
   .exam-desc { color: var(--text-tertiary); font-size: 14px; margin: 0; }
 }
@@ -259,13 +300,27 @@ async function handleSubmit() {
   transition: border-color 0.2s;
   &.has-answer { border-color: var(--color-primary-light); }
 
+  .question-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
   .question-num {
     font-size: 12px;
     font-weight: 700;
     color: var(--color-primary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 12px;
+  }
+  .question-type-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 999px;
+    &.type-choice { background: rgba(200,76,90,0.1); color: var(--color-primary); }
+    &.type-blank  { background: rgba(245,158,11,0.1); color: #d97706; }
+    &.type-coding { background: rgba(34,197,94,0.1); color: #16a34a; }
   }
   .question-text {
     font-size: 17px;
@@ -274,6 +329,65 @@ async function handleSubmit() {
     margin: 0 0 20px;
     line-height: 1.4;
   }
+}
+
+/* ── 填空题 ── */
+.blank-area {
+  margin-top: 4px;
+}
+.blank-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 15px;
+  background: var(--bg-color);
+  color: var(--text-main);
+  outline: none;
+  transition: border-color 0.2s;
+  &:focus { border-color: var(--color-primary); }
+}
+
+/* ── 编程题 ── */
+.coding-area {
+  margin-top: 4px;
+}
+.code-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.code-block {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  padding: 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  line-height: 1.5;
+  overflow-x: auto;
+  margin-bottom: 16px;
+  white-space: pre-wrap;
+}
+.code-editor {
+  width: 100%;
+  min-height: 140px;
+  padding: 14px 16px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 14px;
+  font-family: Consolas, Monaco, 'Courier New', monospace;
+  background: var(--bg-tertiary);
+  color: var(--text-main);
+  outline: none;
+  resize: vertical;
+  line-height: 1.6;
+  tab-size: 4;
+  transition: border-color 0.2s;
+  &:focus { border-color: var(--color-primary); border-width: 2px; }
 }
 
 .option-list {
@@ -403,6 +517,7 @@ async function handleSubmit() {
     font-weight: 600;
     text-decoration: none;
     transition: all 0.2s;
+    cursor: pointer;
   }
   .btn-back {
     background: var(--bg-secondary);

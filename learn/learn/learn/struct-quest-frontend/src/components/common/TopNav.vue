@@ -14,7 +14,7 @@
       <!-- Nav Links -->
       <div class="topnav-links">
         <router-link
-          v-for="item in navItems"
+          v-for="item in allNavItems"
           :key="item.path"
           :to="item.path"
           class="nav-link"
@@ -34,11 +34,26 @@
           </svg>
         </button>
 
-        <!-- User -->
-        <div class="topnav-user" @click="goToProfile">
-          <div class="user-avatar">{{ userName.charAt(0) }}</div>
-          <span class="user-level-badge">Lv.{{ userLevel }}</span>
-        </div>
+        <!-- User Dropdown -->
+        <el-dropdown trigger="click" @command="handleUserCommand">
+          <div class="topnav-user">
+            <div class="user-avatar">{{ userName.charAt(0) }}</div>
+            <span class="user-level-badge">Lv.{{ userLevel }}</span>
+            <svg class="user-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="profile">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-right:6px"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                个人中心
+              </el-dropdown-item>
+              <el-dropdown-item command="logout" divided>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="margin-right:6px"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                退出登录
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
   </nav>
@@ -62,30 +77,48 @@ const IconMap = { render() { return h('svg', { width: 18, height: 18, viewBox: '
 const IconResources = { render() { return h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', innerHTML: '<path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/><path d="M12 11v6"/><path d="M9 14h6"/>' }) } }
 const IconViz = { render() { return h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', innerHTML: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' }) } }
 const IconChat = { render() { return h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', innerHTML: '<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>' }) } }
+const IconPractice = { render() { return h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', innerHTML: '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>' }) } }
 const IconReport = { render() { return h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', innerHTML: '<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>' }) } }
 
 const navItems = [
   { path: '/app',           label: '首页',       icon: IconHome,    match: 'home' },
   { path: '/app/map',       label: '学习地图',   icon: IconMap,     match: 'map' },
-  { path: '/app/resources', label: '学习资源',   icon: IconResources, match: 'resources' },
-  { path: '/app/viz',       label: '算法可视化', icon: IconViz,     match: 'viz' },
+  { path: '/app/practice',  label: 'AI 练习',    icon: IconPractice, match: 'practice' },
+  { path: '/app/resources', label: '冒险游戏',   icon: IconResources, match: 'resources' },
+  { path: '/app/viz',       label: 'AI算法实验室', icon: IconViz,     match: 'viz' },
   { path: '/app/chat',      label: 'AI 导师',    icon: IconChat,    match: 'chat' },
   { path: '/app/analysis',  label: '学习报告',   icon: IconReport,  match: 'analysis' },
 ]
+
+// ★ 管理员专属导航（指向独立管理端布局）
+const adminNavItem = { path: '/admin', label: '管理端', icon: IconReport, match: 'admin' }
+const allNavItems = computed(() => {
+  if (sessionStore.isAdmin) {
+    return [...navItems, adminNavItem]
+  }
+  return navItems
+})
 
 function isActive(item) {
   const p = route.path
   if (item.match === 'home') return p === '/app' || p.startsWith('/app/dashboard')
   if (item.match === 'map') return p.startsWith('/app/map')
+  if (item.match === 'practice') return p.startsWith('/app/practice')
   if (item.match === 'chat') return p.startsWith('/app/chat')
   if (item.match === 'analysis') return p.startsWith('/app/analysis')
   if (item.match === 'resources') return p.startsWith('/app/resources')
   if (item.match === 'viz') return p.startsWith('/app/viz')
+  if (item.match === 'admin') return p.startsWith('/admin')
   return false
 }
 
-function goToProfile() {
-  router.push('/app/profile')
+function handleUserCommand(command) {
+  if (command === 'profile') {
+    router.push('/app/profile')
+  } else if (command === 'logout') {
+    sessionStore.logout()
+    router.push('/login')
+  }
 }
 </script>
 
@@ -162,7 +195,7 @@ function goToProfile() {
 }
 .nav-link.active {
   color: var(--color-primary);
-  background: rgba(99, 102, 241, 0.08);
+  background: rgba(200,76,90, 0.08);
 }
 .nav-link-icon {
   flex-shrink: 0;
@@ -228,10 +261,15 @@ function goToProfile() {
   font-size: 11px;
   font-weight: 700;
   color: var(--color-primary);
-  background: rgba(99, 102, 241, 0.08);
+  background: rgba(200,76,90, 0.08);
   padding: 2px 8px;
   border-radius: 999px;
   white-space: nowrap;
+}
+.user-arrow {
+  color: var(--text-tertiary);
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
 }
 
 /* Responsive */

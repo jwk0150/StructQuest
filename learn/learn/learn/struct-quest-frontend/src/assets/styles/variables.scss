@@ -4,12 +4,12 @@
 
 :root {
   /* ── Brand Colors ── */
-  --color-primary: #6366f1;
-  --color-primary-light: #818cf8;
-  --color-primary-dark: #4f46e5;
+  --color-primary: #c84c5a;
+  --color-primary-light: #d86b76;
+  --color-primary-dark: #aa3948;
   --color-primary-rgb: 99, 102, 241;
 
-  --color-accent-purple: #8b5cf6;
+  --color-accent-purple: #d97982;
   --color-accent-purple-rgb: 139, 92, 246;
   --color-accent-teal: #14b8a6;
   --color-accent-teal-rgb: 20, 184, 166;
@@ -23,14 +23,14 @@
   --color-info: #0891b2;
 
   /* ── Hero / Decorative Gradients ── */
-  --hero-gradient: linear-gradient(135deg, #8b5cf6, #6366f1, #4f46e5);
-  --hero-gradient-soft: linear-gradient(135deg, rgba(139,92,246,0.04), rgba(99,102,241,0.02));
-  --card-glow: 0 0 40px rgba(139, 92, 246, 0.06);
+  --hero-gradient: linear-gradient(135deg, #d97982, #c84c5a, #aa3948);
+  --hero-gradient-soft: linear-gradient(135deg, rgba(217,121,130,0.04), rgba(200,76,90,0.02));
+  --card-glow: 0 0 40px rgba(217,121,130, 0.06);
 
   /* ── Knowledge Nodes ── */
   --node-mastered: #16a34a;
-  --node-learning: #6366f1;
-  --node-recommended: #8b5cf6;
+  --node-learning: #c84c5a;
+  --node-recommended: #d97982;
   --node-not-started: #cbd5e1;
 
   /* ── Backgrounds ── */
@@ -40,7 +40,7 @@
   --bg-page: #f5f6fa;
   --bg-elevated: rgba(255, 255, 255, 0.92);
   --bg-soft-blue: #f0f2ff;
-  --bg-soft-purple: rgba(139, 92, 246, 0.04);
+  --bg-soft-purple: rgba(217,121,130, 0.04);
 
   /* ── Text ── */
   --text-main: #111827;
@@ -58,7 +58,7 @@
   --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
   --shadow-md: 0 12px 28px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04);
   --shadow-lg: 0 24px 60px rgba(15, 23, 42, 0.12), 0 8px 18px rgba(15, 23, 42, 0.06);
-  --shadow-glow: 0 8px 30px rgba(99, 102, 241, 0.2);
+  --shadow-glow: 0 8px 30px rgba(200,76,90, 0.2);
   --shadow-card-hover: 0 16px 40px rgba(15, 23, 42, 0.08);
 
   /* ── Radii ── */
@@ -131,8 +131,8 @@
   --bg-tertiary: #1d2638;
   --bg-page: #0b1020;
   --bg-elevated: rgba(16, 21, 33, 0.9);
-  --bg-soft-blue: rgba(99, 102, 241, 0.12);
-  --bg-soft-purple: rgba(139, 92, 246, 0.08);
+  --bg-soft-blue: rgba(200,76,90, 0.12);
+  --bg-soft-purple: rgba(217,121,130, 0.08);
 
   --text-main: #f8fafc;
   --text-secondary: #cbd5e1;
@@ -147,9 +147,10 @@
   --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.22);
   --shadow-md: 0 16px 36px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 28px 70px rgba(0, 0, 0, 0.44);
-  --shadow-glow: 0 16px 38px rgba(99, 102, 241, 0.26);
+  --shadow-glow: 0 16px 38px rgba(200,76,90, 0.26);
   --shadow-card-hover: 0 20px 48px rgba(0, 0, 0, 0.35);
 
   --topnav-bg: rgba(11, 16, 32, 0.85);
   --topnav-border: rgba(255, 255, 255, 0.06);
 }
+

@@ -18,6 +18,8 @@ console.log('[App] ✅ router 绑定完成')
 // 引入全局样式覆盖
 console.log('[App] 2/6 加载全局样式...')
 import './assets/styles/index.scss'
+import './assets/styles/premium.scss'
+import './assets/styles/reference-theme.scss'
 
 console.log('[App] 3/6 创建 Vue 应用...')
 const app = createApp(App)

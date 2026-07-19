@@ -6,10 +6,12 @@ export const useSessionStore = defineStore('session', {
   state: () => {
     // ★ 从 localStorage 恢复关键状态，避免老用户被重复引导
     const savedProfile = getStorage(STORAGE_KEYS.PROFILE)
+    const onboardingDone = getStorage(STORAGE_KEYS.ONBOARDING_DONE, false)
     const hasSavedProfile = !!(savedProfile && (savedProfile.persona_type || savedProfile.ability_level))
     return {
       isAuthenticated: false,
-      hasCompletedOnboarding: hasSavedProfile, // 有本地画像即视为已完成引导
+      // ★ ONBOARDING_DONE 标记或有效画像均可视为已完成引导
+      hasCompletedOnboarding: hasSavedProfile || !!onboardingDone,
       fatigueLevel: 0,
       currentTask: null,
       isAIThinking: false,
@@ -80,7 +82,8 @@ export const useSessionStore = defineStore('session', {
       }
       // ★ 持久化到 localStorage，防止后端同步失败导致引导状态丢失
       setStorage(STORAGE_KEYS.ONBOARDING_DONE, true)
-      if (profileData && (profileData.persona_type || profileData.ability_level)) {
+      // ★ 始终保存画像到 localStorage（即使缺少 ability_level，引导完成的标记已单独持久化）
+      if (profileData && typeof profileData === 'object') {
         setStorage(STORAGE_KEYS.PROFILE, profileData)
       }
     },

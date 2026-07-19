@@ -2,7 +2,7 @@ import os
 import uuid
 import time
 import json
-from typing import List, Optional, Dict
+from typing import Any, List, Optional, Dict
 
 import httpx
 
@@ -164,6 +164,16 @@ class RAGService:
         self._collection = None
         self._chroma_client = None
 
+    @classmethod
+    def get_instance(cls) -> "RAGService":
+        """Return the process-wide RAG service instance.
+
+        Several agents/scripts historically called ``RAGService.get_instance()``.
+        Keeping this compatibility shim makes every caller use the same Chroma
+        collection and avoids silently bypassing the knowledge base.
+        """
+        return rag_service
+
     # ==================== 嵌入模型 =====================
 
     def _get_embeddings(self) -> EmbeddingClient:
@@ -207,7 +217,11 @@ class RAGService:
     # ==================== 公共：切分+向量化+入库 =====================
 
     def _ingest_documents(
-        self, docs: List[Document], doc_id: str, label: str
+        self,
+        docs: List[Document],
+        doc_id: str,
+        label: str,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict:
         """将 Document 列表切分、向量化并写入 ChromaDB"""
         total_start = time.time()
@@ -219,6 +233,8 @@ class RAGService:
         for i, split in enumerate(splits):
             split.metadata["doc_id"] = doc_id
             split.metadata["chunk_index"] = i
+            if metadata:
+                split.metadata.update(metadata)
         print(f"[RAG][{doc_id}] 切分完成! 共 {len(splits)} 个片段, 耗时: {time.time()-t0:.1f}秒")
 
         if not splits:
@@ -246,7 +262,7 @@ class RAGService:
         batch_size = 50
         for i in range(0, len(documents), batch_size):
             end = min(i + batch_size, len(documents))
-            collection.add(
+            collection.upsert(
                 ids=ids[i:end],
                 documents=documents[i:end],
                 embeddings=embeddings[i:end],
@@ -263,6 +279,65 @@ class RAGService:
         }
 
     # ==================== 文档加载 =====================
+
+    def add_documents(
+        self,
+        texts: List[str],
+        ids: Optional[List[str]] = None,
+        metadatas: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict:
+        """Add/upsert raw text chunks into Chroma.
+
+        Used by course bootstrap scripts and cache builders. Stable IDs make
+        reruns idempotent instead of duplicating chunks.
+        """
+        if not texts:
+            return {"chunks": 0}
+
+        collection = self._get_collection()
+        safe_ids = ids or [f"text_{uuid.uuid4().hex[:12]}_{i}" for i in range(len(texts))]
+        raw_metas = metadatas or [{} for _ in texts]
+        safe_metas: List[Dict[str, Any]] = []
+        for i, meta in enumerate(raw_metas):
+            clean = dict(meta or {})
+            clean.setdefault("doc_id", safe_ids[i])
+            clean.setdefault("chunk_index", str(i))
+            for key, value in list(clean.items()):
+                if isinstance(value, (dict, list, tuple, set)):
+                    clean[key] = json.dumps(value, ensure_ascii=False)
+                elif value is None:
+                    clean[key] = ""
+                elif not isinstance(value, (str, int, float, bool)):
+                    clean[key] = str(value)
+            safe_metas.append(clean)
+
+        embeddings = self._get_embeddings().embed_documents(texts)
+        batch_size = 50
+        for i in range(0, len(texts), batch_size):
+            end = min(i + batch_size, len(texts))
+            collection.upsert(
+                ids=safe_ids[i:end],
+                documents=texts[i:end],
+                embeddings=embeddings[i:end],
+                metadatas=safe_metas[i:end],
+            )
+
+        return {"chunks": len(texts), "ids": safe_ids}
+
+    def ingest_texts(
+        self,
+        texts: List[str],
+        doc_id: str,
+        source: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict:
+        """Split plain text documents and ingest them as one logical document."""
+        docs = [
+            Document(page_content=text, metadata={"source": source, "page": i + 1})
+            for i, text in enumerate(texts)
+            if text and text.strip()
+        ]
+        return self._ingest_documents(docs, doc_id, "TEXT", metadata=metadata)
 
     def process_pdf(self, file_path: str, doc_id: Optional[str] = None) -> Dict:
         """
@@ -339,7 +414,7 @@ class RAGService:
 
     # ==================== 语义检索 =====================
 
-    def retrieve_context(self, query: str, k: int = 4) -> str:
+    def retrieve_context(self, query: str, k: int = 4, where: Optional[Dict[str, Any]] = None) -> str:
         """语义检索：返回 top-k 相关上下文拼接后的文本"""
         if not query or not query.strip():
             return ""
@@ -355,6 +430,7 @@ class RAGService:
             results = collection.query(
                 query_embeddings=[query_embedding],
                 n_results=min(k, collection.count()),
+                where=where,
                 include=["documents", "metadatas"],
             )
 
@@ -378,7 +454,7 @@ class RAGService:
             print(f"[RAG] 检索错误: {e}")
             return ""
 
-    def retrieve_with_scores(self, query: str, k: int = 4) -> List[Dict]:
+    def retrieve_with_scores(self, query: str, k: int = 4, where: Optional[Dict[str, Any]] = None) -> List[Dict]:
         """语义检索：返回带相似度分数的结果列表"""
         results = []
         if not query or not query.strip():
@@ -395,6 +471,7 @@ class RAGService:
             query_results = collection.query(
                 query_embeddings=[query_embedding],
                 n_results=min(k, collection.count()),
+                where=where,
                 include=["documents", "metadatas", "distances"],
             )
 

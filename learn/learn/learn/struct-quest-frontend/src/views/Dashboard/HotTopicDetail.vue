@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="hot-detail-page">
     <!-- 顶部横幅 -->
     <div class="detail-hero" :style="{ background: topicData.gradient }">
@@ -149,7 +149,7 @@
             <transition name="expand">
               <div v-if="showAnswers" class="ex-explanation" :class="ex.type">
                 <div class="explain-label">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97982" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
                   解析
                 </div>
                 <div class="explain-content">
@@ -343,7 +343,7 @@ function getMockTopicData(id, mode) {
       tag: 'AI前沿',
       source: '技术解析 · 热门',
       heat: '18.2k',
-      gradient: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
+      gradient: 'linear-gradient(135deg, #b94b5a, #60a5fa)',
       difficulty: 'medium',
       fullDesc: '深入解析大语言模型的推理机制，从MoE架构到强化学习训练，全面理解DeepSeek等国产大模型的技术创新点。涵盖注意力机制、KV Cache、推测解码等核心技术。',
     },
@@ -353,7 +353,7 @@ function getMockTopicData(id, mode) {
       tag: '二叉树',
       source: '数据结构 · 核心',
       heat: '11.5k',
-      gradient: 'linear-gradient(135deg, #1d4ed8, #3b82f6)',
+      gradient: 'linear-gradient(135deg, #1d4ed8, #b94b5a)',
       difficulty: 'medium',
       fullDesc: '红黑树与AVL树都是自平衡二叉搜索树的经典实现。它们各有优劣，适用于不同场景。本专题从插入效率、查询效率、实现复杂度三个维度进行深度对比分析，并给出选择建议。',
     },
@@ -390,7 +390,7 @@ function getMockTopicData(id, mode) {
       tag: '知识',
       source: '推荐',
       heat: '--',
-      gradient: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',
+      gradient: 'linear-gradient(135deg, #d97982, #e4a5aa)',
       difficulty: 'medium',
       fullDesc: '这是一个关于该知识点的深入学习专题，包含文档、视频、PPT大纲和练习题等多种形式的学习资源。',
     }
@@ -514,7 +514,7 @@ function getMockContentData(id, mode) {
   const pptSlides = [
     {
       title: '概述',
-      color: '#3b82f6',
+      color: '#b94b5a',
       bgColor: '#eff6ff',
       points: [
         mode === 'basic' ? '什么是数组？' : '数组的定义与特征',
@@ -568,8 +568,8 @@ function getMockContentData(id, mode) {
     },
     {
       title: mode === 'basic' ? '实战小练习' : '经典题目解析',
-      color: '#8b5cf6',
-      bgColor: '#f5f3ff',
+      color: '#d97982',
+      bgColor: '#fbf2f3',
       points: [
         mode === 'basic' ? '找出最大的数字' : '两数之和 (LeetCode 1)',
         mode === 'basic' ? '反转数组' : '合并两个有序数组 (LeetCode 88)',
@@ -928,8 +928,8 @@ function getMockContentData(id, mode) {
 .video-rec-badge {
   padding: 1px 6px;
   border-radius: 6px;
-  background: rgba(139,92,246,0.1);
-  color: #7c3aed;
+  background: rgba(217,121,130,0.1);
+  color: #a93546;
   font-weight: 600;
   font-size: 10px;
 }
@@ -981,7 +981,7 @@ function getMockContentData(id, mode) {
 
 /* ── Exercises ── */
 .exercise-header {
-  background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(234,88,12,0.06));
+  background: linear-gradient(135deg, rgba(200,76,90,0.06), rgba(234,88,12,0.06));
   border-radius: 12px;
   padding: 20px 22px;
   margin-bottom: 20px;
@@ -998,9 +998,9 @@ function getMockContentData(id, mode) {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  &.primary { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff; border-color: #6366f1; }
+  &.primary { background: linear-gradient(135deg, #c84c5a, #aa3948); color: #fff; border-color: #c84c5a; }
   &:hover:not(.primary) { border-color: #ccc; background: #fafafa; }
-  &:hover.primary { box-shadow: 0 4px 14px rgba(99,102,241,0.3); transform: translateY(-1px); }
+  &:hover.primary { box-shadow: 0 4px 14px rgba(200,76,90,0.3); transform: translateY(-1px); }
 }
 
 .exercise-list { display: flex; flex-direction: column; gap: 18px; }
@@ -1009,8 +1009,8 @@ function getMockContentData(id, mode) {
   border-radius: 14px;
   border: 1px solid #eee;
   padding: 20px 22px;
-  &.code, &.fill { border-left: 3px solid #8b5cf6; }
-  &.choice, &.judge { border-left: 3px solid #3b82f6; }
+  &.code, &.fill { border-left: 3px solid #d97982; }
+  &.choice, &.judge { border-left: 3px solid #b94b5a; }
 }
 .ex-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .ex-num {
@@ -1034,7 +1034,7 @@ function getMockContentData(id, mode) {
   color: #777;
   &.choice { background: #eff6ff; color: #2563eb; }
   &.judge { background: #fef3c7; color: #d97706; }
-  &.fill { background: #f3e8ff; color: #7c3aed; }
+  &.fill { background: #f3e8ff; color: #a93546; }
   &.code { background: #ede9fe; color: #6d28d9; }
 }
 .ex-diff {
@@ -1071,7 +1071,7 @@ function getMockContentData(id, mode) {
   transition: all 0.2s;
   font-size: 14px;
   color: #444;
-  input[type=radio] { accent-color: var(--theme-color, #3b82f6); }
+  input[type=radio] { accent-color: var(--theme-color, #b94b5a); }
   &:hover { border-color: #ccc; background: #fafafa; }
   &.correct { border-color: #22c55e; background: #f0fdf4; }
   &.wrong { border-color: #ef4444; background: #fef2f2; }
@@ -1085,7 +1085,7 @@ function getMockContentData(id, mode) {
   font-size: 14px;
   font-family: inherit;
   outline: none;
-  &:focus { border-color: var(--theme-color, #3b82f6); box-shadow: 0 0 0 3px rgba(var(--theme-color-rgb), 0.08); }
+  &:focus { border-color: var(--theme-color, #b94b5a); box-shadow: 0 0 0 3px rgba(var(--theme-color-rgb), 0.08); }
 }
 
 /* ── Explanation ── */
@@ -1102,7 +1102,7 @@ function getMockContentData(id, mode) {
   gap: 5px;
   font-size: 12px;
   font-weight: 700;
-  color: #7c3aed;
+  color: #a93546;
   margin-bottom: 8px;
 }
 .explain-content { font-size: 13px; line-height: 1.65; color: #555;
@@ -1163,3 +1163,4 @@ function getMockContentData(id, mode) {
 .expand-enter-from, .expand-leave-to { opacity: 0; max-height: 0; margin-top: 0; padding: 0; }
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 </style>
+

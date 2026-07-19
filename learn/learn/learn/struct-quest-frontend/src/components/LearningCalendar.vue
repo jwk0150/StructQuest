@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="learning-calendar">
     <div class="calendar-header">
       <div class="calendar-title-row">
@@ -152,7 +152,7 @@ const selectedDate = ref(null)
 const selectedCellRect = ref({ x: 0, y: 0 })
 
 // ═══ 主题色（统一） ═══
-const modeColor = computed(() => '#3b82f6')
+const modeColor = computed(() => '#b94b5a')
 const modeLabel = computed(() => '学习记录')
 
 // ═══ 日历数据（从后端加载）═══
@@ -485,10 +485,10 @@ function onMonthChanged() {
 }
 .today-btn {
   padding: 2px 8px;
-  border: 1px solid var(--mode-color, #3b82f6);
+  border: 1px solid var(--mode-color, #b94b5a);
   border-radius: 6px;
   background: transparent;
-  color: var(--mode-color, #3b82f6);
+  color: var(--mode-color, #b94b5a);
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
@@ -550,12 +550,12 @@ function onMonthChanged() {
 
   &.today {
     background: transparent;
-    border: 2px solid var(--mode-color, #3b82f6);
-    .cell-date { color: var(--mode-color, #3b82f6); font-weight: 800; }
+    border: 2px solid var(--mode-color, #b94b5a);
+    .cell-date { color: var(--mode-color, #b94b5a); font-weight: 800; }
   }
 
   &.selected {
-    border-color: var(--mode-color, #3b82f6);
+    border-color: var(--mode-color, #b94b5a);
     box-shadow: 0 0 0 3px rgba(var(--mode-color-rgb), 0.15);
   }
 }
@@ -571,7 +571,7 @@ function onMonthChanged() {
   right: 3px;
   font-size: 7px;
   font-weight: 700;
-  background: var(--mode-color, #3b82f6);
+  background: var(--mode-color, #b94b5a);
   color: #fff;
   padding: 0 3px;
   border-radius: 3px;
@@ -609,7 +609,7 @@ function onMonthChanged() {
     font-size: 13px;
     font-weight: 700;
     color: #555;
-    &.highlight { color: var(--mode-color, #3b82f6); }
+    &.highlight { color: var(--mode-color, #b94b5a); }
     &.streak { color: #E07A5F; }
   }
 }
@@ -750,9 +750,9 @@ function onMonthChanged() {
 .ai-comment {
   margin-top: 8px;
   padding: 8px 10px;
-  background: linear-gradient(135deg, rgba(139,92,246,0.06), rgba(59,130,246,0.06));
+  background: linear-gradient(135deg, rgba(217,121,130,0.06), rgba(59,130,246,0.06));
   border-radius: 8px;
-  border-left: 2.5px solid #8b5cf6;
+  border-left: 2.5px solid #d97982;
   font-size: 11px;
   color: #666;
   line-height: 1.45;
@@ -767,3 +767,4 @@ function onMonthChanged() {
 .fade-enter-active, .fade-leave-active { transition: all 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-4px); }
 </style>
+

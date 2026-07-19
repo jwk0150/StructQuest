@@ -100,6 +100,18 @@ async def get_dynamic_profile(
     record = result.scalar_one_or_none()
 
     if not record:
+        # ★★★ 临时调试 ★★★
+        print(f"[DEBUG-DYNAMIC] user_id={user.id}")
+        print(f"[DEBUG-DYNAMIC] user.profile_data type={type(user.profile_data)}")
+        print(f"[DEBUG-DYNAMIC] user.profile_data bool={bool(user.profile_data) if user.profile_data else False}")
+        if user.profile_data and isinstance(user.profile_data, dict):
+            print(f"[DEBUG-DYNAMIC] user.profile_data keys={list(user.profile_data.keys())[:15]}")
+            print(f"[DEBUG-DYNAMIC] ability_level={user.profile_data.get('ability_level')}")
+        elif user.profile_data and isinstance(user.profile_data, str):
+            print(f"[DEBUG-DYNAMIC] user.profile_data is STRING, len={len(user.profile_data)}, first 200 chars: {user.profile_data[:200]}")
+        print(f"[DEBUG-DYNAMIC] StudentProfile record exists={record is not None}")
+        # ★★★ 调试结束 ★★★
+
         # 尝试从 user.profile_data 降级
         if user.profile_data:
             return {

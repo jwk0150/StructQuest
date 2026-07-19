@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="continue-panel">
     <div class="continue-header">
       <h3 class="panel-title">
@@ -40,8 +40,8 @@
 
           <!-- Nodes -->
           <circle cx="70" cy="20" r="8" fill="#10b981" opacity="0.9"/>
-          <circle cx="70" cy="50" r="8" fill="#6366f1" opacity="0.9"/>
-          <circle cx="40" cy="80" r="8" fill="#8b5cf6" opacity="0.9"/>
+          <circle cx="70" cy="50" r="8" fill="#c84c5a" opacity="0.9"/>
+          <circle cx="40" cy="80" r="8" fill="#d97982" opacity="0.9"/>
           <circle cx="100" cy="80" r="8" fill="#c7d2e2" opacity="0.7"/>
           <circle cx="25" cy="110" r="6" fill="#c7d2e2" opacity="0.5"/>
           <circle cx="55" cy="110" r="6" fill="#c7d2e2" opacity="0.5"/>
@@ -49,7 +49,7 @@
           <circle cx="115" cy="110" r="6" fill="#c7d2e2" opacity="0.5"/>
 
           <!-- Highlight active -->
-          <circle cx="40" cy="80" r="13" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-dasharray="4 3" opacity="0.6">
+          <circle cx="40" cy="80" r="13" fill="none" stroke="#d97982" stroke-width="2" stroke-dasharray="4 3" opacity="0.6">
             <animateTransform attributeName="transform" type="rotate" from="0 40 80" to="360 40 80" dur="20s" repeatCount="indefinite"/>
           </circle>
           <circle cx="40" cy="80" r="4" fill="#fff"/>
@@ -86,7 +86,7 @@ defineProps({
   right: 0;
   width: 200px;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(99,102,241,0.02));
+  background: linear-gradient(90deg, transparent, rgba(200,76,90,0.02));
   pointer-events: none;
 }
 .continue-panel:hover {
@@ -175,11 +175,11 @@ defineProps({
   cursor: pointer;
   width: fit-content;
   transition: all var(--transition-fast);
-  box-shadow: 0 3px 12px rgba(99,102,241,0.2);
+  box-shadow: 0 3px 12px rgba(200,76,90,0.2);
 }
 .continue-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(99,102,241,0.28);
+  box-shadow: 0 6px 20px rgba(200,76,90,0.28);
 }
 
 .continue-visual {
@@ -194,3 +194,4 @@ defineProps({
   height: auto;
 }
 </style>
+

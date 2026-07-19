@@ -78,9 +78,14 @@ async def get_current_user(
         # token 过期或无效 → 静默返回 None（不抛 401）
         return None
 
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    return user  # 用户不存在也返回 None，不抛错误
+    try:
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        return user  # 用户不存在也返回 None，不抛错误
+    except Exception as e:
+        print(f"[Auth]  查询用户失败 user_id={user_id}: {e}")
+        import traceback; traceback.print_exc()
+        return None  # 降级为未登录，不阻塞请求
 
 
 async def get_required_user(user: Optional[User] = Depends(get_current_user)) -> User:

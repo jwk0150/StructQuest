@@ -491,7 +491,7 @@ class MultiAgentGraph:
             ("📋 PlannerAgent",    "学习规划 — 基于画像和知识图谱规划路径"),
             ("📦 ResourceAgent",   "资源工厂 — 先检索后生成，保存到资源库"),
             ("🎯 Recommendation",  "首页推荐 — 个性化排序与推荐"),
-            ("👨‍🏫 TutorAgent",      "学习老师 — 结合画像/知识库/错题辅导"),
+            ("👨‍🏫 TutorAgent",      "学习老师 v4 — 结合画像/知识库/错题，多模态教学（导图/动画/代码/PPT/练习）"),
             ("📝 AssessmentAgent", "测评反馈 — 布鲁姆六维评估"),
         ]
         logger.info("注册 Agents (%d):", len(agents_info))
@@ -635,7 +635,7 @@ flowchart TD
     ORC -->|规划| PL[📋 Planner<br/>学习路径]
     ORC -->|资源| RA[📦 Resource<br/>资源工厂]
     ORC -->|推荐| RC[🎯 Recommendation<br/>首页推荐]
-    ORC -->|提问| TA[👨‍🏫 Tutor<br/>学习辅导]
+    ORC -->|提问| TA[👨‍🏫 Tutor v4<br/>多模态辅导]
     ORC -->|测试| AA[📝 Assessment<br/>测评反馈]
 
     PA --> ORC

@@ -477,18 +477,14 @@ async function finishOnboarding() {
       generated_at: new Date().toISOString(),
     }
 
-    // 保存到本地 store
+    console.log('[Onboarding] finishOnboarding — aiProfile keys:', Object.keys(aiProfile.value))
+    console.log('[Onboarding] finishOnboarding — profileData keys:', Object.keys(profileData))
+    console.log('[Onboarding] finishOnboarding — ability_level:', profileData.ability_level)
+
+    // 保存到本地 store（始终持久化 ONBOARDING_DONE 标记）
     sessionStore.updateProfile(profileData)
     setStorage(STORAGE_KEYS.PROFILE, profileData)
     setStorage(STORAGE_KEYS.ONBOARDING_DONE, true)
-
-    // 保存到后端
-    try {
-      const { profileApi } = await import('../../api/profile')
-      await profileApi.save(profileData)
-    } catch (err) {
-      console.warn('[Onboarding] 后端保存画像失败（已用本地备份兜底）:', err.message || err)
-    }
 
     router.push('/app')
   } catch (e) {

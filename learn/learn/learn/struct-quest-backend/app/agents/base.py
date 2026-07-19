@@ -140,19 +140,20 @@ class BaseAgent(ABC):
             except RuntimeError:
                 loop = None
 
+            if loop and loop.is_running():
+                # 在运行中的事件循环内被同步调用（反模式，如直接在 async 路由中同步调用）
+                # 降级到同步 fallback，避免新建线程池+独立事件循环导致的开销和连接泄漏
+                logger.debug(
+                    "[%s] 检测到运行中的事件循环，降级到同步 LLM 调用（建议用 asyncio.to_thread 包装）",
+                    self.name,
+                )
+                return self._call_llm_fallback(messages, temperature=temperature, max_tokens=max_tokens)
+
+            # 无运行中的事件循环（如 asyncio.to_thread 包装的独立线程）→ 安全地用 asyncio.run
             async def _async_call():
                 return await self.llm.generate(messages, temperature=temperature, **kwargs)
 
-            if loop and loop.is_running():
-                # 在已有事件循环中创建任务
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    future = pool.submit(
-                        asyncio.run, _async_call()
-                    )
-                    return future.result(timeout=60)
-            else:
-                return asyncio.run(_async_call())
+            return asyncio.run(_async_call())
 
         # 策略2: 内置同步 OpenAI 兜底
         return self._call_llm_fallback(messages, temperature=temperature, max_tokens=max_tokens)
@@ -194,8 +195,6 @@ class BaseAgent(ABC):
         # 诊断日志：记录实际使用的配置（key 脱敏）
         masked_key = api_key[:8] + "***" if len(api_key) > 8 else "***"
         model = os.getenv("LLM_MODEL", "deepseek-chat")
-        if base_url and "deepseek" in base_url.lower():
-            model = os.getenv("FALLBACK_MODEL", "deepseek-chat")
         logger.info("[%s] 🔧 LLM fallback: base_url=%s, model=%s, key=%s, cwd=%s",
                    self.name, base_url or "(empty→api.openai.com!)", model, masked_key, Path.cwd())
 
@@ -344,8 +343,8 @@ class BaseAgent(ABC):
         if rag_service is None:
             # 尝试延迟导入
             try:
-                from app.services.rag import RAGService
-                rag_service = RAGService.get_instance()
+                from app.services.rag import rag_service as global_rag_service
+                rag_service = global_rag_service
             except Exception:
                 return ""
 

@@ -145,3 +145,62 @@ export const stages = [
     ]
   },
 ]
+
+// ════════════════════════════════════════════
+// 工具函数：ID → 中文名映射（从 stages 自动派生）
+// ════════════════════════════════════════════
+
+/** 从 stages 数据自动构建的 id → 中文名 映射表 */
+const nodeIdMap = {}
+stages.forEach(chapter => {
+  // 章节自身
+  nodeIdMap[chapter.id] = chapter.title
+  // 章节下所有知识点
+  chapter.nodes.forEach(node => {
+    nodeIdMap[node.id] = node.name
+  })
+})
+
+/**
+ * 将知识点/章节 ID 翻译为中文名
+ * @param {string} id - 节点或章节 ID，如 'ch05_binary_tree'
+ * @returns {string} 中文名，未命中原样返回
+ */
+export function getNodeNameById(id) {
+  return nodeIdMap[id] || id
+}
+
+/** 8 章前缀 → 中文章名映射 */
+const CHAPTER_PREFIX_MAP = {
+  ch01_: '绪论',
+  ch02_: '线性表',
+  ch03_: '栈和队列',
+  ch04_: '串数组广义表',
+  ch05_: '树和二叉树',
+  ch06_: '图',
+  ch07_: '查找',
+  ch08_: '排序',
+}
+
+/**
+ * 将 50+ 个知识点的掌握度分数聚合成 8 章分数
+ * @param {Object} mastery - { 'ch01_algorithm': 85, 'ch05_binary_tree': 60, ... }
+ * @returns {Object} - { '绪论': 77.5, '线性表': 50, ... }
+ */
+export function aggregateToChapters(mastery) {
+  const groups = {}
+  for (const [key, score] of Object.entries(mastery)) {
+    for (const [prefix, chapName] of Object.entries(CHAPTER_PREFIX_MAP)) {
+      if (key.startsWith(prefix)) {
+        if (!groups[chapName]) groups[chapName] = []
+        groups[chapName].push(Number(score))
+        break
+      }
+    }
+  }
+  const result = {}
+  for (const [name, scores] of Object.entries(groups)) {
+    result[name] = scores.reduce((a, b) => a + b, 0) / scores.length
+  }
+  return result
+}

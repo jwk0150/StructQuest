@@ -1,0 +1,77 @@
+export const KNOWLEDGE_NAME_MAP = {
+  ch01_intro: '绪论',
+  ch01_data_concept: '数据结构基本概念',
+  ch01_data_type: '数据类型',
+  ch01_adt: '抽象数据类型',
+  ch01_algorithm: '算法与算法分析',
+  ch02_linear_list: '线性表',
+  ch02_seq_list: '顺序表',
+  ch02_linked_list: '链表',
+  ch02_doubly_list: '双向链表',
+  ch02_circular_list: '循环链表',
+  ch02_static_list: '静态链表',
+  ch03_stack_queue: '栈和队列',
+  ch03_stack_basic: '栈的基本概念',
+  ch03_seq_stack: '顺序栈',
+  ch03_chain_stack: '链栈',
+  ch03_queue_basic: '队列',
+  ch03_circular_queue: '循环队列',
+  ch03_chain_queue: '链队列',
+  ch04_string_array: '串、数组和广义表',
+  ch04_string: '串',
+  ch04_pattern_match: '模式匹配',
+  ch04_array: '数组',
+  ch04_sparse_matrix: '稀疏矩阵',
+  ch04_generalized_list: '广义表',
+  ch05_tree: '树和二叉树',
+  ch05_tree_basic: '树',
+  ch05_binary_tree: '二叉树',
+  ch05_tree_traversal: '二叉树遍历',
+  ch05_threaded_tree: '线索二叉树',
+  ch05_huffman: '哈夫曼树',
+  ch05_avl: 'AVL 平衡二叉树',
+  ch05_rbtree: '红黑树',
+  ch05_btree: 'B 树',
+  ch05_bplus_tree: 'B+ 树',
+  ch05_union_find: '并查集',
+  ch06_graph: '图',
+  ch06_graph_concept: '图的基本概念',
+  ch06_graph_storage: '图的存储结构',
+  ch06_dfs: '深度优先搜索',
+  ch06_bfs: '广度优先搜索',
+  ch06_mst: '最小生成树',
+  ch06_shortest_path: '最短路径',
+  ch06_topo_sort: '拓扑排序',
+  ch06_critical_path: '关键路径',
+  ch07_search: '查找',
+  ch07_seq_search: '顺序查找',
+  ch07_binary_search: '折半查找',
+  ch07_block_search: '分块查找',
+  ch07_bst_search: '二叉排序树',
+  ch07_hash_search: '哈希查找',
+  ch07_skip_list: '跳表',
+  ch07_trie: '字典树',
+  ch08_sort: '排序',
+  ch08_insert_sort: '插入排序',
+  ch08_shell_sort: '希尔排序',
+  ch08_bubble_sort: '冒泡排序',
+  ch08_quick_sort: '快速排序',
+  ch08_selection_sort: '简单选择排序',
+  ch08_heap_sort: '堆排序',
+  ch08_merge_sort: '归并排序',
+  ch08_radix_sort: '基数排序',
+  ch08_counting_sort: '计数排序',
+  ch08_bucket_sort: '桶排序',
+}
+
+export function formatKnowledgeName(value, fallback = '') {
+  if (!value) return fallback
+  const text = String(value)
+  return KNOWLEDGE_NAME_MAP[text] || text.replace(/\bch\d{2}_[a-z0-9_]+\b/g, id => KNOWLEDGE_NAME_MAP[id] || id)
+}
+
+export function stepKnowledgeTitle(step, fallback = '') {
+  const id = step?.node_id || step?.nodeId || step?.id
+  if (id && KNOWLEDGE_NAME_MAP[id]) return KNOWLEDGE_NAME_MAP[id]
+  return formatKnowledgeName(step?.topic || step?.title || step?.name, fallback)
+}

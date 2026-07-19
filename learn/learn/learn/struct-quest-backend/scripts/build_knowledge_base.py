@@ -1,127 +1,250 @@
 """
-课程知识库构建脚本
+Build the StructQuest initial course knowledge base.
 
-将 knowledge_nodes 表中的8章45个知识点 + 考试题库
-向量化存入 ChromaDB，供 RAG 服务检索。
+Inputs:
+- course_data/data_structures/chapters/*.md
+- knowledge_nodes seeded by app.db.session
+- hardcoded chapter exam bank from app.api.exam_api
 
-运行方式：
+Output:
+- Chroma collection used by app.services.rag.rag_service
+
+Run:
     cd struct-quest-backend
     python scripts/build_knowledge_base.py
 """
-import os
-import sys
-import asyncio
 
-# 确保项目路径在 sys.path 中
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import sys
+from pathlib import Path
+from typing import Dict, List
 
 from dotenv import load_dotenv
-load_dotenv()
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BACKEND_ROOT))
+load_dotenv(BACKEND_ROOT / ".env")
+
+COURSE_ID = "data_structures"
+COURSE_NAME = "\u6570\u636e\u7ed3\u6784"
+COURSE_VERSION = "2026.07"
+COURSE_DIR = BACKEND_ROOT / "course_data" / COURSE_ID
+CHAPTERS = [
+    ("ch01_intro", "\u7eea\u8bba\u4e0e\u7b97\u6cd5\u5206\u6790", "chapters/01_intro.md"),
+    ("ch02_linear_list", "\u7ebf\u6027\u8868", "chapters/02_linear_list.md"),
+    ("ch03_stack_queue", "\u6808\u548c\u961f\u5217", "chapters/03_stack_queue.md"),
+    ("ch04_string_array", "\u4e32\u3001\u6570\u7ec4\u548c\u5e7f\u4e49\u8868", "chapters/04_string_array.md"),
+    ("ch05_tree", "\u6811\u548c\u4e8c\u53c9\u6811", "chapters/05_tree.md"),
+    ("ch06_graph", "\u56fe", "chapters/06_graph.md"),
+    ("ch07_search", "\u67e5\u627e", "chapters/07_search.md"),
+    ("ch08_sort", "\u6392\u5e8f", "chapters/08_sort.md"),
+]
 
 
-async def build_knowledge_base():
-    """构建知识库索引"""
-    from app.db.session import AsyncSessionLocal, engine
+def _stable_id(*parts: str) -> str:
+    raw = "::".join(parts)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
+
+
+def _base_meta(document_type: str) -> Dict[str, str]:
+    return {
+        "course_id": COURSE_ID,
+        "course_name": COURSE_NAME,
+        "version": COURSE_VERSION,
+        "document_type": document_type,
+    }
+
+
+def _load_course_docs() -> List[Dict[str, str]]:
+    docs: List[Dict[str, str]] = []
+    for chapter, title, rel_path in CHAPTERS:
+        path = COURSE_DIR / rel_path
+        if not path.exists():
+            raise FileNotFoundError(f"Missing course chapter: {path}")
+        content = path.read_text(encoding="utf-8")
+        docs.append(
+            {
+                "doc_id": f"course_{COURSE_ID}_{chapter}",
+                "title": title,
+                "chapter": chapter,
+                "source": str(path.relative_to(BACKEND_ROOT)).replace("\\", "/"),
+                "content": content,
+            }
+        )
+    return docs
+
+
+async def _load_knowledge_nodes() -> List[Dict[str, str]]:
+    from app.db.session import AsyncSessionLocal
     from sqlalchemy import text
 
-    print("=" * 60)
-    print("StructQuest 课程知识库构建工具")
-    print("=" * 60)
-
-    # 1. 从知识图谱节点提取内容
-    print("\n[1/3] 提取知识图谱节点...")
-    documents = []
-
+    rows: List[Dict[str, str]] = []
     async with AsyncSessionLocal() as db:
-        result = await db.execute(text(
-            "SELECT id, title, description, full_desc, category, points, ai_suggestion "
-            "FROM knowledge_nodes ORDER BY category, order_index"
-        ))
-        nodes = result.fetchall()
-
-        for node in nodes:
+        result = await db.execute(
+            text(
+                "SELECT id, title, description, full_desc, category, points, ai_suggestion "
+                "FROM knowledge_nodes ORDER BY category, order_index"
+            )
+        )
+        for node in result.fetchall():
             node_id, title, desc, full_desc, category, points, ai_suggestion = node
+            rows.append(
+                {
+                    "id": f"node_{node_id}",
+                    "title": title or node_id,
+                    "chapter": category or "",
+                    "source": "database:knowledge_nodes",
+                    "content": "\n\n".join(
+                        [
+                            f"# {title}",
+                            f"\u8282\u70b9ID: {node_id}",
+                            f"\u7ae0\u8282: {category or ''}",
+                            f"\u63cf\u8ff0: {desc or ''}",
+                            f"\u8be6\u7ec6\u8bf4\u660e: {full_desc or ''}",
+                            f"\u77e5\u8bc6\u70b9: {points or ''}",
+                            f"\u5b66\u4e60\u5efa\u8bae: {ai_suggestion or ''}",
+                        ]
+                    ),
+                }
+            )
+    return rows
 
-            # 组合为可检索的文本
-            content_parts = [
-                f"# {title}",
-                f"分类: {category}",
-                f"描述: {desc or ''}",
-                f"详细说明: {full_desc or ''}",
-                f"知识点: {points or ''}",
-                f"学习建议: {ai_suggestion or ''}",
-            ]
-            content = "\n\n".join(content_parts)
 
-            documents.append({
-                "id": node_id,
-                "title": title,
-                "category": category,
-                "content": content,
-            })
-
-        print(f"  已提取 {len(documents)} 个知识节点")
-
-    # 2. 从考试题库提取题目
-    print("\n[2/3] 提取考试题库...")
+def _load_exam_docs() -> List[Dict[str, str]]:
     try:
         from app.api.exam_api import NODE_EXAMS
-        exam_count = 0
-        for node_id, exam_data in NODE_EXAMS.items():
-            questions = exam_data.get("questions", [])
-            for q in questions:
-                q_text = q.get("question", "")
-                options = "\n".join(q.get("options", []))
-                explanation = q.get("explanation", "")
-                q_content = f"题目: {q_text}\n选项:\n{options}\n解析: {explanation}"
+    except Exception as exc:
+        print(f"[warn] skip exam bank: {exc}")
+        return []
 
-                documents.append({
-                    "id": f"exam_{q.get('id', node_id)}",
-                    "title": f"练习题: {q_text[:30]}...",
-                    "category": "exam_questions",
-                    "content": q_content,
-                })
-                exam_count += 1
-        print(f"  已提取 {exam_count} 道练习题")
-    except ImportError:
-        print("  跳过：无法导入 NODE_EXAMS")
+    docs: List[Dict[str, str]] = []
+    for node_id, exam_data in NODE_EXAMS.items():
+        for index, q in enumerate(exam_data.get("questions", []), start=1):
+            question = q.get("question", "")
+            options = "\n".join(q.get("options", []))
+            explanation = q.get("explanation", "")
+            answer = q.get("answer", q.get("correct", ""))
+            docs.append(
+                {
+                    "id": f"exam_{_stable_id(node_id, str(index), question)}",
+                    "title": f"{node_id} \u7ec3\u4e60\u9898 {index}",
+                    "chapter": node_id.split("_")[0] if "_" in node_id else "",
+                    "source": "app.api.exam_api:NODE_EXAMS",
+                    "content": (
+                        f"# {node_id} \u7ec3\u4e60\u9898 {index}\n\n"
+                        f"\u9898\u76ee: {question}\n\n"
+                        f"\u9009\u9879:\n{options}\n\n"
+                        f"\u7b54\u6848: {answer}\n\n"
+                        f"\u89e3\u6790: {explanation}"
+                    ),
+                }
+            )
+    return docs
 
-    # 3. 向量化存入 ChromaDB
-    print(f"\n[3/3] 向量化并存入 ChromaDB ({len(documents)} 条文档)...")
-    try:
-        from app.services.rag import RAGService
 
-        rag = RAGService.get_instance()
-        if rag is None:
-            print("  RAG 服务未初始化，请检查 EMBEDDING_API_KEY 配置")
-            return
+async def _sync_db_document_records(course_docs: List[Dict[str, str]], chunks_by_doc: Dict[str, int]) -> None:
+    from app.db.session import AsyncSessionLocal
+    from app.models.knowledge import KnowledgeDocument
+    from sqlalchemy.future import select
 
-        # 分批处理
-        batch_size = 10
-        stored = 0
-        for i in range(0, len(documents), batch_size):
-            batch = documents[i:i + batch_size]
-            texts = [d["content"] for d in batch]
-            ids = [d["id"] for d in batch]
-            metadatas = [
-                {"title": d["title"], "category": d["category"], "doc_id": d["id"]}
-                for d in batch
-            ]
+    async with AsyncSessionLocal() as db:
+        for doc in course_docs:
+            result = await db.execute(
+                select(KnowledgeDocument).where(KnowledgeDocument.doc_id == doc["doc_id"])
+            )
+            record = result.scalar_one_or_none()
+            if record:
+                record.filename = doc["source"]
+                record.chunks = chunks_by_doc.get(doc["doc_id"], record.chunks or 0)
+                record.status = "active"
+            else:
+                db.add(
+                    KnowledgeDocument(
+                        doc_id=doc["doc_id"],
+                        filename=doc["source"],
+                        file_size=round(len(doc["content"].encode("utf-8")) / 1024, 2),
+                        chunks=chunks_by_doc.get(doc["doc_id"], 0),
+                        status="active",
+                    )
+                )
+        await db.commit()
 
-            try:
-                rag.add_documents(texts, ids=ids, metadatas=metadatas)
-                stored += len(batch)
-                print(f"  进度: {stored}/{len(documents)}")
-            except Exception as e:
-                print(f"  批次 {i//batch_size + 1} 失败: {e}")
 
-        print(f"\n✅ 知识库构建完成！共 {stored} 条文档已索引")
-    except Exception as e:
-        print(f"\n❌ 向量化失败: {e}")
-        print("  请检查:")
-        print("  1. .env 文件中 EMBEDDING_API_KEY 是否正确")
-        print("  2. EMBEDDING_BASE_URL 是否可访问")
-        print("  3. ChromaDB 存储路径是否可写")
+async def build_knowledge_base() -> None:
+    from app.db.session import init_database
+    from app.services.rag import rag_service
+
+    print("=" * 72)
+    print("StructQuest initial course knowledge-base builder")
+    print("=" * 72)
+
+    print("[1/5] Ensure database schema and seed knowledge graph")
+    await init_database()
+
+    print("[2/5] Ingest course chapter documents")
+    course_docs = _load_course_docs()
+    chunks_by_doc: Dict[str, int] = {}
+    for doc in course_docs:
+        result = rag_service.ingest_texts(
+            [doc["content"]],
+            doc_id=doc["doc_id"],
+            source=doc["source"],
+            metadata={
+                **_base_meta("initial_course"),
+                "chapter": doc["chapter"],
+                "chapter_name": doc["title"],
+            },
+        )
+        chunks_by_doc[doc["doc_id"]] = result["chunks"]
+        print(f"  {doc['chapter']}: {result['chunks']} chunks")
+
+    print("[3/5] Sync course document records")
+    await _sync_db_document_records(course_docs, chunks_by_doc)
+
+    print("[4/5] Upsert knowledge graph nodes")
+    nodes = await _load_knowledge_nodes()
+    rag_service.add_documents(
+        texts=[n["content"] for n in nodes],
+        ids=[n["id"] for n in nodes],
+        metadatas=[
+            {
+                **_base_meta("knowledge_graph_node"),
+                "doc_id": n["id"],
+                "title": n["title"],
+                "chapter": n["chapter"],
+                "source": n["source"],
+            }
+            for n in nodes
+        ],
+    )
+    print(f"  {len(nodes)} nodes")
+
+    print("[5/5] Upsert exam bank")
+    exams = _load_exam_docs()
+    rag_service.add_documents(
+        texts=[e["content"] for e in exams],
+        ids=[e["id"] for e in exams],
+        metadatas=[
+            {
+                **_base_meta("exam_question"),
+                "doc_id": e["id"],
+                "title": e["title"],
+                "chapter": e["chapter"],
+                "source": e["source"],
+            }
+            for e in exams
+        ],
+    )
+    print(f"  {len(exams)} questions")
+
+    stats = rag_service.get_stats()
+    print("Done.")
+    print(f"  Chroma path: {stats.get('chroma_path')}")
+    print(f"  Total chunks: {stats.get('total_chunks')}")
+    print(f"  Distinct docs: {stats.get('document_count')}")
 
 
 if __name__ == "__main__":

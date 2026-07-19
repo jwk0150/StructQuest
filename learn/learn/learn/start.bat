@@ -22,6 +22,17 @@ goto end
 
 :run_both
 echo.
+echo 正在检查 Redis...
+tasklist /fi "imagename eq redis-server.exe" 2>nul | find /i "redis-server.exe" >nul
+if errorlevel 1 (
+    echo 正在启动 Redis...
+    start "Redis" /min "d:\lastone\Redis-x64-5.0.14.1\redis-server.exe"
+    timeout /t 2 /nobreak >nul
+    echo Redis 启动完成
+) else (
+    echo Redis 已在运行
+)
+echo.
 echo 正在启动后端 (Port 8008)...
 start "StructQuest-Backend" cmd /k "chcp 65001 >nul & cd /d "%~dp0struct-quest-backend" && .\venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port 8008 --reload"
 
@@ -40,6 +51,17 @@ echo ========================================
 goto end
 
 :run_backend
+echo.
+echo 正在检查 Redis...
+tasklist /fi "imagename eq redis-server.exe" 2>nul | find /i "redis-server.exe" >nul
+if errorlevel 1 (
+    echo 正在启动 Redis...
+    start "Redis" /min "d:\lastone\Redis-x64-5.0.14.1\redis-server.exe"
+    timeout /t 2 /nobreak >nul
+    echo Redis 启动完成
+) else (
+    echo Redis 已在运行
+)
 echo.
 echo 正在启动后端 (Port 8008)...
 start "StructQuest-Backend" cmd /k "chcp 65001 >nul & cd /d "%~dp0struct-quest-backend" && .\venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port 8008 --reload"

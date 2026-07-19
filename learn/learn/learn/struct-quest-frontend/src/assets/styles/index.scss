@@ -34,8 +34,8 @@
 #app {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 12% -10%, rgba(99, 102, 241, 0.08), transparent 30%),
-    radial-gradient(circle at 88% 0%, rgba(139, 92, 246, 0.06), transparent 28%),
+    radial-gradient(circle at 12% -10%, rgba(200,76,90, 0.08), transparent 30%),
+    radial-gradient(circle at 88% 0%, rgba(217,121,130, 0.06), transparent 28%),
     var(--bg-page);
 }
 
@@ -179,13 +179,13 @@
   border-radius: var(--radius-xs) !important;
 }
 
-::where(.home-page, .map-view, .analysis-container, .profile-view, .knowledge-base, .review-page, .quest-page, .resources-page, .daily-practice-page, .exam-page, .admin-page, .viz-page, .chat-page-container) {
+:where(.home-page, .map-view, .analysis-container, .profile-view, .knowledge-base, .review-page, .quest-page, .resources-page, .daily-practice-page, .exam-page, .admin-page, .viz-page, .chat-page-container) {
   max-width: 1480px;
   margin: 0 auto;
   padding: 28px;
 }
 
-::where(.panel, .sb-card, .stat-card, .profile-card, .persona-card, .stats-card, .path-card, .progress-card, .analysis-card, .map-topbar, .chapter-card, .review-card, .resource-card) {
+:where(.panel, .sb-card, .stat-card, .profile-card, .persona-card, .stats-card, .path-card, .progress-card, .analysis-card, .map-topbar, .chapter-card, .review-card, .resource-card) {
   border: 1px solid var(--border-color) !important;
   border-radius: var(--radius-md) !important;
   background: var(--bg-elevated) !important;
@@ -193,38 +193,38 @@
   backdrop-filter: blur(16px);
 }
 
-::where(.panel, .sb-card, .stat-card, .profile-card, .persona-card, .stats-card, .path-card, .progress-card, .analysis-card, .chapter-card, .review-card, .resource-card):hover {
+:where(.panel, .sb-card, .stat-card, .profile-card, .persona-card, .stats-card, .path-card, .progress-card, .analysis-card, .chapter-card, .review-card, .resource-card):hover {
   border-color: var(--border-strong) !important;
   box-shadow: var(--shadow-md) !important;
 }
 
-::where(.panel-title, .map-title, .analysis-title, .profile-title, .section-title) {
+:where(.panel-title, .map-title, .analysis-title, .profile-title, .section-title) {
   letter-spacing: 0;
 }
 
-::where(.stats-row, .analysis-grid, .profile-main-grid, .main-grid) {
+:where(.stats-row, .analysis-grid, .profile-main-grid, .main-grid) {
   gap: 20px !important;
 }
 
-::where(.cta-btn, .refresh-btn, .add-task-btn, .map-empty-btn, .nl-gen-btn, .nl-chart-btn, .nl-res-tab) {
+:where(.cta-btn, .refresh-btn, .add-task-btn, .map-empty-btn, .nl-gen-btn, .nl-chart-btn, .nl-res-tab) {
   font-family: var(--font-body) !important;
   letter-spacing: 0 !important;
 }
 
-::where(.cta-primary, .add-task-btn, .nl-gen-btn) {
+:where(.cta-primary, .add-task-btn, .nl-gen-btn) {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light)) !important;
   box-shadow: var(--shadow-glow) !important;
 }
 
-::where(.task-bar-fill, .cp-fill, .pi-fill) {
+:where(.task-bar-fill, .cp-fill, .pi-fill) {
   background: linear-gradient(90deg, var(--color-primary), var(--color-accent-teal)) !important;
 }
 
-::where(.markdown-body) {
+:where(.markdown-body) {
   color: var(--text-main);
 }
 
-::where(.markdown-body pre) {
+:where(.markdown-body pre) {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -315,3 +315,5 @@ section + section,
 .panel, .stat-card, .sb-card, .overview-card {
   animation: fadeSlideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+

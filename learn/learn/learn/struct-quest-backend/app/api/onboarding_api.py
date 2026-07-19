@@ -567,6 +567,14 @@ async def generate_initial_profile(
         if not profile_data:
             profile_data = agent._default_profile(user.course or "数据结构", user.learning_goal or "")
 
+        # ★★★ 临时调试 ★★★
+        print(f"[DEBUG-ONBOARDING] profile_data type={type(profile_data)}")
+        if isinstance(profile_data, dict):
+            print(f"[DEBUG-ONBOARDING] profile_data keys={list(profile_data.keys())[:15]}")
+            print(f"[DEBUG-ONBOARDING] ability_level={profile_data.get('ability_level')}")
+            print(f"[DEBUG-ONBOARDING] learning_style={profile_data.get('learning_style')}")
+        # ★★★ 调试结束 ★★★
+
         # 保存到用户
         user.profile_data = profile_data
         user.has_completed_onboarding = True

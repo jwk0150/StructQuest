@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <section class="external-section">
     <div class="external-header">
       <div class="external-header-left">
         <h2 class="external-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #8b5cf6;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #d97982;">
             <circle cx="12" cy="12" r="10"/>
             <line x1="2" y1="12" x2="22" y2="12"/>
             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
@@ -73,7 +73,7 @@
             <h4 class="external-card-title">{{ item.title }}</h4>
             <p class="external-card-summary">{{ item.summary || item.ai_recommend_reason || '暂无摘要' }}</p>
             <div v-if="item.ai_recommend_reason" class="ai-reason">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#d97982" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
               <span>{{ item.ai_recommend_reason }}</span>
             </div>
             <div v-if="item.tags && item.tags.length > 0" class="external-tags">
@@ -449,16 +449,16 @@ onMounted(() => {
 .refresh-btn {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 7px 16px; border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #8b5cf6, #a78bfa); color: #fff; border: none;
+  background: linear-gradient(135deg, #d97982, #e4a5aa); color: #fff; border: none;
   font-size: var(--text-xs); font-weight: var(--font-semibold); font-family: var(--font-body);
   cursor: pointer; transition: all 0.25s ease; white-space: nowrap;
 
   &:hover:not(:disabled) {
-    box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+    box-shadow: 0 4px 14px rgba(217,121,130, 0.35);
     transform: translateY(-1px);
   }
   &:disabled { opacity: 0.7; cursor: not-allowed; }
-  &.is-loading { background: linear-gradient(135deg, #7c3aed, #8b5cf6); }
+  &.is-loading { background: linear-gradient(135deg, #a93546, #d97982); }
 }
 
 .external-grid {
@@ -477,7 +477,7 @@ onMounted(() => {
   &:hover {
     transform: translateY(-4px);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-    border-color: rgba(139, 92, 246, 0.3);
+    border-color: rgba(217,121,130, 0.3);
     .external-card-cover { transform: scale(1.03); }
   }
 
@@ -546,8 +546,8 @@ onMounted(() => {
 }
 .ai-reason {
   display: flex; align-items: center; gap: 4px;
-  font-size: 11px; color: #8b5cf6;
-  background: rgba(139, 92, 246, 0.06); padding: 3px 8px;
+  font-size: 11px; color: #d97982;
+  background: rgba(217,121,130, 0.06); padding: 3px 8px;
   border-radius: var(--radius-sm); width: fit-content; margin-bottom: 6px;
 
   span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
@@ -607,3 +607,4 @@ onMounted(() => {
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .spin-icon { animation: spin 1s linear infinite; }
 </style>
+

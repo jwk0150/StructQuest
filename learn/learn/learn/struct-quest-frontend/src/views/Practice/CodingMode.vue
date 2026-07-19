@@ -1,0 +1,189 @@
+﻿<template>
+  <div class="coding-mode-page animate-in">
+    <header class="cm-header">
+      <router-link to="/app/practice" class="cm-back">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        返回练习中心
+      </router-link>
+      <h1 class="cm-title">💻 编程模式</h1>
+      <p class="cm-subtitle">LeetCode 风格在线评测 + AI 代码分析 — 选择算法分类</p>
+    </header>
+
+    <div class="cm-categories">
+      <div
+        v-for="cat in categories"
+        :key="cat.key"
+        class="cm-cat-card"
+        @click="goCategory(cat)"
+      >
+        <div class="cat-illustration">
+          <span class="cat-icon">{{ cat.icon }}</span>
+          <div class="cat-lines">
+            <span class="cat-code-line" v-for="i in 3" :key="i" :style="{ width: 40 + i * 18 + '%' }"></span>
+          </div>
+        </div>
+        <div class="cat-info">
+          <span class="cat-label">{{ cat.label }}</span>
+          <span class="cat-hint">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+            进入练习
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cm-features">
+      <h3 class="cm-feature-title">编程模式特色</h3>
+      <div class="cm-feature-list">
+        <div class="cm-feature-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          <span>Monaco Editor 智能编码</span>
+        </div>
+        <div class="cm-feature-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>多语言在线评测</span>
+        </div>
+        <div class="cm-feature-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>AI 智能代码分析</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { useRouter } from 'vue-router'
+import { CODING_CATEGORIES } from './practiceData'
+
+const router = useRouter()
+const categories = CODING_CATEGORIES
+
+function goCategory(cat) {
+  if (cat.nodeId) {
+    router.push({
+      path: `/app/exam/${cat.nodeId}`,
+      query: { practice: 'coding', mode: 'coding', count: 3, difficulty: 'balanced' },
+    })
+  }
+}
+</script>
+
+<style scoped>
+.coding-mode-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-8) var(--space-12);
+}
+
+.cm-header { margin-bottom: var(--space-8); }
+.cm-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--text-tertiary); text-decoration: none;
+  font-size: var(--text-xs); font-weight: var(--font-semibold);
+  margin-bottom: var(--space-3); transition: color var(--transition-fast);
+}
+.cm-back:hover { color: var(--color-primary); }
+.cm-title { font-size: var(--text-3xl); font-weight: var(--font-extrabold); color: var(--text-main); margin: 0 0 4px; }
+.cm-subtitle { font-size: var(--text-sm); color: var(--text-secondary); margin: 0; }
+
+/* Categories */
+.cm-categories {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-10);
+}
+
+.cm-cat-card {
+  padding: var(--space-5);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.cm-cat-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(59, 130, 246, 0.25);
+  box-shadow: var(--shadow-md);
+}
+
+.cat-illustration {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.cat-icon { font-size: 28px; flex-shrink: 0; }
+
+.cat-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  padding-top: 4px;
+}
+
+.cat-code-line {
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+}
+
+.cat-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cat-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  color: var(--text-main);
+}
+
+.cat-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  transition: color var(--transition-fast);
+}
+
+.cm-cat-card:hover .cat-hint { color: #b94b5a; }
+
+/* Features */
+.cm-features { margin-top: var(--space-6); }
+.cm-feature-title { font-size: var(--text-base); font-weight: var(--font-bold); color: var(--text-main); margin: 0 0 var(--space-4); }
+
+.cm-feature-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+.cm-feature-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-soft-blue);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+  .cm-categories { grid-template-columns: repeat(2, 1fr); }
+  .cm-feature-list { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .cm-categories { grid-template-columns: 1fr; }
+  .cm-title { font-size: var(--text-2xl); }
+}
+</style>
+

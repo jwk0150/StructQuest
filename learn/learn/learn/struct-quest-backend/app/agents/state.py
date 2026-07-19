@@ -231,16 +231,36 @@ class RecommendationResult(TypedDict, total=False):
 
 
 # ══════════════════════════════════════════════════
-#  辅导对话（TutorAgent 产出）
+#  辅导对话（TutorAgent 产出）— v4 多模态增强版
 # ══════════════════════════════════════════════════
 
+class TutorResourceAttachment(TypedDict, total=False):
+    """Tutor 回复中附带的多模态资源"""
+    type: str                      # mindmap / animation / ppt_outline / code_example / notes / exercise
+    title: str                     # 资源标题
+    content_text: str              # 文本内容（思维导图 Markdown、代码等）
+    content_json: Optional[Dict]   # 结构化内容（练习题 JSON 等）
+    format: str                    # markmap / video / pptx / python / markdown / json
+    preview_url: Optional[str]     # 资源预览 URL
+    file_url: Optional[str]        # 文件下载 URL
+    thumbnail_url: Optional[str]   # 缩略图 URL
+    generated_for: str             # 生成原因（e.g., "用户是视觉偏好者，用思维导图辅助理解"）
+    quality_score: Optional[float] # 质量评分
+    generation_time_seconds: Optional[float]  # 生成耗时
+    metadata: Optional[Dict]       # 扩展元数据
+
+
 class TutorResponse(TypedDict, total=False):
-    """Tutor Agent 的回答"""
+    """Tutor Agent 的回答（v4 多模态增强版）"""
     answer_text: str               # 回答文本
     referenced_knowledge: List[str]  # 引用的知识点
     used_context: str              # 使用的上下文来源: knowledge_base/student_profile/chat_history/error_book
     follow_up_suggestions: List[str]  # 建议的后续问题
     generated_visual: Optional[str]  # 可选：生成的图示/代码
+    # ★ v4 新增：多模态资源
+    resource_attachments: List[TutorResourceAttachment]  # 附带的多模态资源
+    primary_format: str            # 主要回复格式: text_only / mindmap_enhanced / animation_enhanced / code_enhanced / ppt_enhanced / exercise_enhanced
+    format_reason: str             # 为什么选择这个格式（可解释性）
 
 
 # ══════════════════════════════════════════════════

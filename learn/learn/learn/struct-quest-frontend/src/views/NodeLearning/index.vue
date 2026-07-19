@@ -1,22 +1,30 @@
 <template>
   <div class="nl-layout">
-    <!-- ═══ 顶部栏 ═══ -->
+    <!-- ═══ 顶部学习上下文 ═══ -->
     <header class="nl-topbar">
       <div class="nl-topbar-left">
-        <el-breadcrumb separator="/">
-          <el-breadcrumb-item :to="{ path: '/map' }">学习图谱</el-breadcrumb-item>
-          <el-breadcrumb-item>{{ chapterTitle }}</el-breadcrumb-item>
-        </el-breadcrumb>
+        <button class="nl-back-brain" @click="router.push('/app/map')">← 返回知识大脑</button>
+        <div class="nl-context-copy">
+          <el-breadcrumb separator="/">
+            <el-breadcrumb-item>{{ chapterTitle }}</el-breadcrumb-item>
+            <el-breadcrumb-item>{{ nodeName }}</el-breadcrumb-item>
+          </el-breadcrumb>
+          <strong>{{ nodeName }}</strong>
+        </div>
+      </div>
+      <div class="nl-path-context">
+        <span class="nl-path-orbit">AI</span>
+        <div><small>个性化路径</small><strong>{{ currentPathSummary }}</strong></div>
       </div>
       <div class="nl-topbar-right">
         <span v-if="todayStudyTime" class="nl-study-timer">{{ todayStudyTime }}</span>
         <span class="nl-status-dot" :class="{ thinking: isAIThinking }"></span>
-        <span class="nl-status-text">{{ isAIThinking ? 'AI 思考中...' : '在线' }}</span>
+        <span class="nl-status-text">{{ isAIThinking ? '多智能体协同中...' : '资源已就绪' }}</span>
       </div>
     </header>
 
     <!-- ═══ 三栏主体 ═══ -->
-    <div class="nl-main">
+    <div class="nl-main" :class="{ 'resource-focus': resourceFocusMode }">
       <!-- ▸ 左栏：本章知识目录树 ═══ -->
       <aside class="nl-left" :class="{ collapsed: leftCollapsed }">
         <div class="nl-left-header">
@@ -24,6 +32,11 @@
           <button class="nl-left-toggle" @click="leftCollapsed = !leftCollapsed">
             {{ leftCollapsed ? '▶' : '◀' }}
           </button>
+        </div>
+        <div v-if="!leftCollapsed" class="nl-chapter-progress">
+          <div><span>本章学习进度</span><strong>{{ chapterCompletedCount }}/{{ chapterNodeCount }}</strong></div>
+          <div class="nl-chapter-progress-track"><i :style="{ width: chapterProgressPercentage + '%' }"></i></div>
+          <small>当前：{{ nodeName }}</small>
         </div>
         <div v-if="!leftCollapsed" class="nl-left-body">
           <div v-if="treeLoading" class="nl-tree-loading">
@@ -78,8 +91,8 @@
               <circle cx="36" cy="36" r="8" stroke="var(--color-primary)" stroke-width="1.5" fill="none" opacity="0.4"/>
             </svg>
           </div>
-          <h3 class="nl-empty-title">{{ chapterTitle }} · 思维导图</h3>
-          <p class="nl-empty-desc">AI 智能体将分析本章节知识结构，自动生成交互式思维导图。<br/>点击任意节点可在右侧面板查看详情和生成学习资源。</p>
+          <h3 class="nl-empty-title">{{ nodeName }} · 本节知识结构</h3>
+          <p class="nl-empty-desc">多智能体将结合学习路径与当前掌握情况生成局部概念脑图。<br/>选择任意概念节点，即可获得匹配你偏好的专属资源。</p>
           <button class="nl-gen-btn" :disabled="mindmapLoading" @click="() => generateMindmap(focusNodeTitle || nodeName)">
             <span class="nl-gen-btn-icon">{{ mindmapLoading ? '⏳' : '🧠' }}</span>
             <span>{{ mindmapLoading ? 'AI 正在分析知识结构...' : 'AI 生成思维导图' }}</span>
@@ -89,7 +102,10 @@
 
         <div v-else class="nl-center-chart">
           <div class="nl-chart-toolbar">
-            <span class="nl-chart-title">🧠 {{ mindmapCurrentTopic || chapterTitle }} · 思维导图</span>
+            <div class="nl-chart-title-wrap">
+              <span class="nl-chart-kicker">本节知识结构</span>
+              <span class="nl-chart-title">{{ mindmapCurrentTopic || nodeName }}</span>
+            </div>
             <div class="nl-chart-actions">
               <button class="nl-chart-btn" @click="resetMindmapZoom">🔄 重置</button>
               <button class="nl-chart-btn" @click="regenerateMindmap" :disabled="mindmapLoading">
@@ -107,192 +123,99 @@
       </main>
 
       <!-- ▸ 右栏：AI 学习资源面板 ═══ -->
-      <aside class="nl-right" :class="{ collapsed: rightCollapsed }">
+      <aside class="nl-right" :class="{ collapsed: rightCollapsed, focused: resourceFocusMode }">
         <div class="nl-right-header">
-          <span class="nl-right-title">⚡ AI 学习工具</span>
-          <button class="nl-right-toggle" @click="rightCollapsed = !rightCollapsed">
-            {{ rightCollapsed ? '◀' : '▶' }}
-          </button>
+          <div class="nl-right-title-wrap"><small>当前概念</small><span class="nl-right-title">节点学习资源</span></div>
+          <div class="nl-right-actions">
+            <button v-if="!rightCollapsed && activeResourceType" class="nl-focus-toggle" @click="resourceFocusMode = !resourceFocusMode">{{ resourceFocusMode ? '恢复三栏' : '展开阅读' }}</button>
+            <button class="nl-right-toggle" @click="toggleRightPanel">{{ rightCollapsed ? '◀' : '▶' }}</button>
+          </div>
         </div>
 
         <div v-if="!rightCollapsed" class="nl-right-body">
-          <!-- 未选中思维导图节点 -->
           <div v-if="!selectedMindmapNode" class="nl-right-empty">
             <div class="nl-right-empty-icon">👆</div>
             <p>在思维导图中<br/>点击任意节点开始</p>
             <p class="nl-right-empty-sub">AI 将为你生成该知识点的<br/>专属学习资源</p>
           </div>
 
-          <!-- 已选中节点 → 显示资源面板 -->
           <template v-else>
-            <!-- 节点信息 -->
             <div class="nl-right-node-info">
               <h3 class="nl-right-node-name">{{ selectedMindmapNode }}</h3>
               <p class="nl-right-node-hint">选择下方资源类型，AI 智能体将自动生成</p>
             </div>
 
-            <!-- ═══ 资源类型按钮 ═══ -->
-            <div class="nl-resource-tabs">
-              <button
-                v-for="res in resourceSlots"
-                :key="res.type"
-                class="nl-res-tab"
-                :class="{ active: activeResourceType === res.type, loading: res.loading, generated: res.generated }"
-                @click="selectResourceTab(res)"
-              >
-                <span class="nl-res-icon">{{ res.icon }}</span>
-                <span class="nl-res-label">{{ res.label }}</span>
-                <span v-if="res.loading" class="nl-res-spin">⟳</span>
-                <span v-else-if="res.generated" class="nl-res-check">✓</span>
-              </button>
+            <div class="nl-resource-groups">
+              <div class="nl-resource-group">
+                <span class="nl-resource-group-label">学习</span>
+                <div class="nl-resource-tabs">
+                  <button v-for="res in learningResourceSlots" :key="res.type" class="nl-res-tab"
+                    :class="{ active: activeResourceType === res.type, loading: res.loading, generated: res.generated }" @click="selectResourceTab(res)">
+                    <span class="nl-res-icon">{{ res.icon }}</span><span class="nl-res-label">{{ res.label }}</span>
+                    <span v-if="res.loading" class="nl-res-spin">⟳</span><span v-else-if="res.generated" class="nl-res-check">✓</span>
+                  </button>
+                </div>
+              </div>
+              <div class="nl-resource-group">
+                <span class="nl-resource-group-label">创作</span>
+                <div class="nl-resource-tabs compact">
+                  <button v-for="res in creationResourceSlots" :key="res.type" class="nl-res-tab"
+                    :class="{ active: activeResourceType === res.type, loading: res.loading, generated: res.generated }" @click="selectResourceTab(res)">
+                    <span class="nl-res-icon">{{ res.icon }}</span><span class="nl-res-label">{{ res.label }}</span>
+                    <span v-if="res.loading" class="nl-res-spin">⟳</span><span v-else-if="res.generated" class="nl-res-check">✓</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <!-- 生成进度 -->
             <div v-if="generatingLabel" class="nl-gen-progress">
               <span class="nl-gen-pulse"></span>
               AI 正在生成 <strong>{{ generatingLabel }}</strong>...
             </div>
 
-            <!-- ═══ 内容展示区（按资源类型切换） ═══ -->
             <div class="nl-right-content">
-              <!-- 空状态 -->
               <div v-if="!activeResourceType" class="nl-content-empty">
                 <p>点击上方按钮<br/>AI 智能体将为你生成</p>
               </div>
-
-              <!-- 加载中 -->
               <div v-else-if="currentResource?.loading" class="nl-content-loading">
                 <span class="nl-loading-spinner"></span>
                 <p>AI 正在生成 {{ currentResource?.label }}...</p>
               </div>
-
-              <!-- ── 思维导图子展开 ── -->
               <div v-else-if="activeResourceType === 'sub_mindmap' && subMindmapContent" class="nl-content-section">
-                <div class="nl-section-header">
-                  <span>🧠 {{ selectedMindmapNode }} · 子导图</span>
-                  <button class="nl-section-close" @click="activeResourceType = null">✕</button>
-                </div>
+                <div class="nl-section-header"><span>🧠 {{ selectedMindmapNode }} · 子导图</span></div>
                 <div ref="subMindmapRef" class="nl-sub-mindmap"></div>
               </div>
-
-              <!-- ── 学习讲义 ── -->
-              <div v-else-if="activeResourceType === 'notes' && currentResource?.content" class="nl-content-section">
-                <div class="nl-section-header">
-                  <span>📖 {{ selectedMindmapNode }} · 学习讲义</span>
-                  <el-button size="small" text type="primary" @click="regenerateResource('notes')" :loading="currentResource?.loading">重新生成</el-button>
-                </div>
-                <div class="nl-markdown markdown-body" v-html="renderMarkdown(currentResource.content)"></div>
-              </div>
-
-              <!-- ── 代码案例 ── -->
-              <div v-else-if="activeResourceType === 'code_example' && currentResource?.content" class="nl-content-section">
-                <div class="nl-section-header">
-                  <span>💻 {{ selectedMindmapNode }} · 代码案例</span>
-                  <el-button size="small" text type="primary" @click="regenerateResource('code_example')" :loading="currentResource?.loading">重新生成</el-button>
-                </div>
-                <div class="nl-markdown markdown-body" v-html="renderMarkdown(currentResource.content)"></div>
-              </div>
-
-              <!-- ── 练习题（交互式 QuizDisplay） ── -->
               <div v-else-if="activeResourceType === 'quiz'" class="nl-content-section nl-quiz-section">
                 <div class="nl-section-header">
                   <span>✏️ {{ selectedMindmapNode }} · 练习题</span>
                   <el-button size="small" text type="primary" @click="regenerateResource('quiz')" :loading="currentResource?.loading">重新生成</el-button>
                 </div>
-                <QuizDisplay
-                  v-if="currentResource?.quiz_items"
-                  :quiz-items="currentResource.quiz_items"
-                  :title="selectedMindmapNode + ' 练习题'"
-                  :node-id="selectedMindmapNode"
-                />
+                <QuizDisplay v-if="currentResource?.quiz_items" :quiz-items="currentResource.quiz_items" :title="selectedMindmapNode + ' 练习题'" :node-id="selectedMindmapNode" />
                 <div v-else-if="currentResource?.content" class="nl-markdown markdown-body" v-html="renderMarkdown(currentResource.content)"></div>
-                <div v-else class="nl-content-empty"><p>点击🔄重新生成</p></div>
               </div>
-
-              <!-- ── PPT 大纲（PPT 智能生成器） ── -->
               <div v-else-if="activeResourceType === 'ppt_outline'" class="nl-content-section">
-                <div class="nl-section-header">
-                  <span>📽️ {{ selectedMindmapNode }} · PPT 大纲</span>
-                </div>
+                <div class="nl-section-header"><span>📽️ {{ selectedMindmapNode }} · PPT 大纲</span></div>
                 <div class="nl-ppt-entry" @click="openPPTGenerator">
-                  <div class="nl-ppt-card">
-                    <span class="nl-ppt-card-icon">✨</span>
-                    <div class="nl-ppt-card-text">
-                      <strong>AI 智能生成 PPT</strong>
-                      <p>基于思维导图自动生成 · 支持预览编辑 · 三阶段流程</p>
-                    </div>
-                    <span class="nl-ppt-card-arrow">→</span>
-                  </div>
+                  <div class="nl-ppt-card"><span class="nl-ppt-card-icon">✨</span><div class="nl-ppt-card-text"><strong>AI 智能生成 PPT</strong><p>基于思维导图自动生成 · 支持预览编辑</p></div><span class="nl-ppt-card-arrow">→</span></div>
                 </div>
                 <PPTGenerator ref="pptGeneratorRef" />
               </div>
-
-              <!-- ── 动画演示 ── -->
               <div v-else-if="activeResourceType === 'animation'" class="nl-content-section nl-anim-section">
-                <div class="nl-section-header">
-                  <span>🎬 {{ selectedMindmapNode }} · 动画演示</span>
-                </div>
-                <!-- 视频播放 -->
-                <div v-if="animData.video_url" class="nl-anim-video">
-                  <video :src="animData.video_url" controls autoplay loop class="nl-anim-player"
-                    :poster="animData.thumbnail_url"></video>
-                  <div class="nl-anim-meta">
-                    <span>⏱️ {{ animData.render_time }}s</span>
-                    <span>🎬 {{ animData.scene_name }}</span>
-                  </div>
-                </div>
-                <!-- 输入区 -->
+                <div class="nl-section-header"><span>🎬 {{ selectedMindmapNode }} · 动画演示</span></div>
                 <div class="nl-anim-input">
-                  <div class="nl-anim-mode-tabs">
-                    <button :class="{ active: animInputMode === 'description' }" @click="animInputMode = 'description'">文字描述</button>
-                    <button :class="{ active: animInputMode === 'code' }" @click="animInputMode = 'code'">粘贴代码</button>
-                  </div>
-                  <el-input v-model="animInputText" type="textarea" :rows="animInputMode === 'code' ? 6 : 3"
-                    :placeholder="animInputMode === 'description' ? '用自然语言描述算法过程...' : '粘贴算法代码...'"
-                    class="nl-anim-textarea" />
-                  <div v-if="animInputMode === 'code'" class="nl-anim-lang">
-                    <label>语言：</label>
-                    <el-select v-model="animCodeLang" size="small">
-                      <el-option label="Python" value="python" />
-                      <el-option label="Java" value="java" />
-                      <el-option label="C++" value="cpp" />
-                      <el-option label="JavaScript" value="javascript" />
-                      <el-option label="Go" value="go" />
-                    </el-select>
-                  </div>
-                  <el-button type="primary" size="small" :loading="animData.loading" :disabled="!animInputText.trim()"
-                    @click="generateAnimation" class="nl-anim-gen-btn">
-                    {{ animData.loading ? '⏳ 生成中...' : '🎬 生成动画' }}
-                  </el-button>
+                  <el-input v-model="animInputText" type="textarea" :rows="4" placeholder="用自然语言描述算法过程..." class="nl-anim-textarea" />
+                  <el-button type="primary" size="small" :loading="animData.loading" :disabled="!animInputText.trim()" @click="generateAnimation" class="nl-anim-gen-btn">{{ animData.loading ? '⏳ 生成中...' : '🎬 生成动画' }}</el-button>
                   <p v-if="animData.error" class="nl-anim-error">⚠️ {{ animData.error }}</p>
                 </div>
-                <!-- 源码 -->
-                <details v-if="animData.source_code" class="nl-anim-source">
-                  <summary>🐍 查看 Manim 源码</summary>
-                  <textarea v-model="animEditCode" class="nl-anim-code-editor" rows="8" spellcheck="false"></textarea>
-                  <el-button size="small" type="primary" @click="rerenderAnimation" :loading="animRerendering" style="margin-top:6px;">▶️ 重新渲染</el-button>
-                </details>
+                <div v-if="animData.video_url" class="nl-anim-video"><video :src="animData.video_url" controls autoplay loop class="nl-anim-player"></video></div>
               </div>
-
-              <!-- ── 例题讲解 ── -->
-              <div v-else-if="activeResourceType === 'example' && currentResource?.content" class="nl-content-section">
+              <div v-else-if="currentResource?.content" class="nl-content-section">
                 <div class="nl-section-header">
-                  <span>📝 {{ selectedMindmapNode }} · 例题讲解</span>
-                  <el-button size="small" text type="primary" @click="regenerateResource('example')" :loading="currentResource?.loading">重新生成</el-button>
+                  <span>{{ currentResource.icon }} {{ selectedMindmapNode }} · {{ currentResource.label }}</span>
+                  <el-button size="small" text type="primary" @click="regenerateResource(activeResourceType)" :loading="currentResource?.loading">重新生成</el-button>
                 </div>
                 <div class="nl-markdown markdown-body" v-html="renderMarkdown(currentResource.content)"></div>
               </div>
-
-              <!-- ── 常见错误 ── -->
-              <div v-else-if="activeResourceType === 'common_mistakes' && currentResource?.content" class="nl-content-section">
-                <div class="nl-section-header">
-                  <span>⚠️ {{ selectedMindmapNode }} · 常见错误</span>
-                  <el-button size="small" text type="primary" @click="regenerateResource('common_mistakes')" :loading="currentResource?.loading">重新生成</el-button>
-                </div>
-                <div class="nl-markdown markdown-body" v-html="renderMarkdown(currentResource.content)"></div>
-              </div>
-
-              <!-- 需要先生成 -->
               <div v-else-if="activeResourceType" class="nl-content-empty">
                 <p>资源尚未生成</p>
                 <el-button type="primary" size="small" @click="regenerateResource(activeResourceType)">🚀 立即生成</el-button>
@@ -300,14 +223,13 @@
             </div>
           </template>
         </div>
-      </aside>
-    </div>
+      </aside>    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, reactive, watch, onMounted, onActivated, onDeactivated, onUnmounted, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { marked } from 'marked'
 import * as echarts from 'echarts'
 import { parseMindmap } from '../../utils/mindmapParser.js'
@@ -321,9 +243,12 @@ import PPTGenerator from '../../components/PPTGenerator/index.vue'
 import QuizDisplay from '../../components/QuizDisplay/index.vue'
 
 const route = useRoute()
+import { useLearningStore } from '../../store/learning'
 
 // ── 学习计时器 ──
 const { startTimer, stopTimer, elapsedSeconds } = useStudyTimer()
+const router = useRouter()
+const learningStore = useLearningStore()
 const todayStudyTime = ref('')
 let timerInterval = null
 function updateTodayTime() {
@@ -350,6 +275,20 @@ const focusNodeTitle = ref('')
 const focusNodeId = ref('')
 
 const nodeName = computed(() => focusNodeTitle.value || currentNodeTitle.value)
+const currentPathSummary = computed(() => {
+  const path = learningStore.learningPath || []
+  if (!path.length) return `本章推荐 · ${nodeName.value}`
+  const clean = value => String(value || '').toLowerCase().replace(/[\s·、，,。()（）\-_/]/g, '')
+  const current = path.findIndex(step => {
+    const stepId = step.node_id || step.nodeId || step.id
+    if (stepId && stepId === nodeId.value) return true
+    const topic = clean(step.topic || step.title || step.name)
+    const title = clean(nodeName.value)
+    return topic && title && (topic.includes(title) || title.includes(topic))
+  })
+  const index = current >= 0 ? current : Math.min(learningStore.currentStepIndex || 0, path.length - 1)
+  return `第 ${index + 1}/${path.length} 步 · ${path[index]?.topic || nodeName.value}`
+})
 
 function resolveNodeTitle(rawId) {
   if (!rawId) return '知识点'
@@ -471,6 +410,10 @@ const flatTreeNodes = computed(() => {
   flatten(roots, 0)
   return flat
 })
+
+const chapterNodeCount = computed(() => getChapterNodes().length)
+const chapterCompletedCount = computed(() => getChapterNodes().filter(node => node.status === 'completed').length)
+const chapterProgressPercentage = computed(() => chapterNodeCount.value ? Math.round(chapterCompletedCount.value / chapterNodeCount.value * 100) : 0)
 
 function toggleTreeNode(node) {
   if (expandedNodeIds.value.has(node.id)) expandedNodeIds.value.delete(node.id)
@@ -709,6 +652,11 @@ function renderSubMindmap() {
 // 右栏：AI 资源生成（智能体驱动）
 // ═══════════════════════════════════════
 const rightCollapsed = ref(false)
+const resourceFocusMode = ref(false)
+function toggleRightPanel() {
+  rightCollapsed.value = !rightCollapsed.value
+  if (rightCollapsed.value) resourceFocusMode.value = false
+}
 const activeResourceType = ref(null)
 const generatingLabel = ref('')
 const pptGeneratorRef = ref(null)
@@ -740,6 +688,9 @@ const resourceData = reactive({
 const resourceSlots = computed(() =>
   RESOURCE_DEFS.map(d => ({ ...d, loading: resourceData[d.type].loading, generated: resourceData[d.type].generated }))
 )
+const learningResourceSlots = computed(() => resourceSlots.value.filter(item => !['ppt_outline', 'animation'].includes(item.type)))
+const creationResourceSlots = computed(() => resourceSlots.value.filter(item => ['ppt_outline', 'animation'].includes(item.type)))
+
 const currentResource = computed(() => {
   if (!activeResourceType.value) return null
   const def = RESOURCE_DEFS.find(d => d.type === activeResourceType.value)
@@ -815,10 +766,12 @@ function clearRightPanel() {
   // ★ 只重置当前视图状态，不清除已生成的资源数据（它们已在缓存中）
   activeResourceType.value = null
   generatingLabel.value = ''
+  resourceFocusMode.value = false
 }
 
 function selectResourceTab(res) {
-  if (activeResourceType.value === res.type) { activeResourceType.value = null; return }
+  if (activeResourceType.value === res.type) { activeResourceType.value = null; resourceFocusMode.value = false; return }
+  rightCollapsed.value = false
   activeResourceType.value = res.type
   if (res.type === 'sub_mindmap' && !resourceData.sub_mindmap.generated) generateSubMindmap()
 }
@@ -1127,4 +1080,41 @@ watch(nodeId, (newId, oldId) => {
   summary{padding:8px 12px;font-size:12px;font-weight:600;color:var(--color-primary);background:#f0f4ff;cursor:pointer}
   .nl-anim-code-editor{width:100%;min-height:120px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.5;color:#e2e8f0;background:#1e1e2e;border:none;resize:vertical;outline:none}
 }
+/* ═══ 个性化节点学习工作台 ═══ */
+.nl-layout { --nl-purple:#6757ea; --nl-teal:#26b8c7; background:#f5f6fa; }
+.nl-topbar { height:64px;padding:0 18px;gap:18px;background:rgba(255,255,255,.96);box-shadow:0 1px 0 rgba(31,41,55,.05);z-index:8;
+  .nl-topbar-left{display:flex;align-items:center;gap:12px;min-width:280px}
+  .nl-context-copy{display:flex;flex-direction:column;gap:4px;min-width:0;.el-breadcrumb{font-size:10px}.el-breadcrumb__inner{color:#9aa3b5}.el-breadcrumb__separator{margin:0 5px}strong{font-size:14px;color:#253047;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+  .nl-topbar-right{margin-left:auto}
+}
+.nl-back-brain{height:34px;padding:0 11px;border:1px solid #e6e8ef;border-radius:10px;background:#fff;color:#5f6a7d;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .2s;&:hover{color:var(--nl-purple);border-color:rgba(103,87,234,.35);background:#f7f5ff}}
+.nl-path-context{display:flex;align-items:center;gap:9px;padding:6px 12px;border-radius:12px;background:linear-gradient(135deg,#f1efff,#f0fafb);border:1px solid rgba(103,87,234,.12);min-width:210px;
+  .nl-path-orbit{width:30px;height:30px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--nl-purple),var(--nl-teal));color:#fff;font-size:9px;font-weight:850;box-shadow:0 6px 14px rgba(103,87,234,.2)}div{display:flex;flex-direction:column;gap:1px}small{font-size:9px;color:#949daf}strong{max-width:250px;font-size:11px;color:#4b4b83;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
+.nl-main{transition:all .28s ease}.nl-left{width:250px;transition:width .28s ease}.nl-left-header{padding:11px 12px}.nl-left-title{font-size:12px!important}
+.nl-chapter-progress{padding:12px 13px;border-bottom:1px solid #eef0f4;background:linear-gradient(145deg,#fbfaff,#f6fbfc);display:grid;gap:7px;
+  >div:first-child{display:flex;justify-content:space-between;align-items:center}span{font-size:10px;color:#7e889b}strong{font-size:10px;color:#5e50d7}.nl-chapter-progress-track{height:5px;border-radius:3px;background:#e6e8ee;overflow:hidden;i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--nl-purple),var(--nl-teal));transition:width .35s}}small{font-size:9px;color:#a1a8b6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
+.nl-tree-node{min-height:32px;padding-top:8px!important;padding-bottom:8px!important;border-left:2px solid transparent;&.active{border-left-color:var(--nl-purple);background:linear-gradient(90deg,rgba(103,87,234,.11),rgba(103,87,234,.03))}}
+.nl-center{position:relative;background:radial-gradient(circle at 50% 46%,rgba(103,87,234,.09),transparent 29%),radial-gradient(circle at 25% 75%,rgba(38,184,199,.06),transparent 26%),#f7f8fc}
+.nl-center::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.35;background-image:radial-gradient(circle,#aeb5c4 1px,transparent 1px);background-size:24px 24px;mask-image:linear-gradient(to bottom,transparent,black 18%,black 82%,transparent)}
+.nl-center-empty,.nl-center-chart{position:relative;z-index:1}.nl-chart-toolbar{min-height:49px;padding:8px 14px;background:rgba(255,255,255,.92);backdrop-filter:blur(12px)}
+.nl-chart-title-wrap{display:flex;flex-direction:column;gap:2px}.nl-chart-kicker{font-size:9px;color:#9189db;font-weight:750;text-transform:uppercase;letter-spacing:.08em}.nl-chart-title{font-size:13px!important;color:#253047!important}.nl-chart-actions{display:flex;gap:6px}
+.nl-node-indicator{padding:9px 14px;background:rgba(103,87,234,.07);border-color:rgba(103,87,234,.14);strong{color:var(--nl-purple)}}
+.nl-right{width:420px;transition:width .28s ease,box-shadow .28s ease;border-left-color:#e8eaf0;box-shadow:-8px 0 28px rgba(44,52,78,.04);&.focused{box-shadow:-16px 0 42px rgba(39,44,76,.11)}}
+.nl-right-header{min-height:49px;padding:8px 12px!important;background:#fff}.nl-right-title-wrap{display:flex;flex-direction:column;gap:1px;small{font-size:8px;color:#a0a8b8;text-transform:uppercase;letter-spacing:.08em}.nl-right-title{font-size:13px!important}}
+.nl-right-actions{display:flex;align-items:center;gap:5px}.nl-focus-toggle{height:26px;padding:0 9px;border:1px solid rgba(103,87,234,.22);border-radius:8px;background:#f4f2ff;color:#5d4ed7;font-size:9px;font-weight:700;cursor:pointer;&:hover{background:#ebe8ff}}
+.nl-right-node-info{padding:13px 15px;background:linear-gradient(135deg,rgba(103,87,234,.07),rgba(38,184,199,.05));.nl-right-node-name{font-size:17px}.nl-right-node-hint{font-size:11px}}
+.nl-resource-groups{padding:10px 12px;border-bottom:1px solid #eceef3;display:grid;gap:8px;background:#fff}.nl-resource-group{display:grid;grid-template-columns:36px 1fr;align-items:start;gap:6px}.nl-resource-group-label{font-size:9px;color:#a0a8b8;padding-top:7px;text-transform:uppercase;letter-spacing:.08em}
+.nl-resource-tabs{padding:0!important;border:0!important;display:flex;gap:4px;flex-wrap:wrap}.nl-res-tab{padding:6px 9px;border-radius:8px;font-size:10px;background:#fafbfc;&.active{background:#f0edff;border-color:rgba(103,87,234,.34);color:var(--nl-purple)}&.generated{border-color:rgba(34,197,94,.22);background:#fbfffd}}
+.nl-gen-progress{font-size:10px}.nl-section-header{min-height:43px;padding:9px 14px;background:#fafbfc;span{font-size:12px}}
+.nl-markdown{padding:18px 20px;font-size:14px;line-height:1.85;max-width:900px;margin:0 auto;width:100%;box-sizing:border-box}
+.nl-main.resource-focus{
+  .nl-left{width:42px}.nl-left-title,.nl-chapter-progress,.nl-left-body{opacity:0;pointer-events:none}.nl-left-header{padding:11px 8px}.nl-left-toggle{margin:auto}
+  .nl-center{flex:0 0 36%;min-width:360px}.nl-right.focused{width:auto;flex:1;min-width:560px}.nl-markdown{font-size:15px;line-height:1.9;padding:24px 34px}.nl-sub-mindmap{height:520px}.nl-anim-player{max-height:520px}
+}
+@media(max-width:1250px){.nl-path-context{display:none}.nl-left{width:225px}.nl-right{width:380px}.nl-main.resource-focus .nl-center{flex-basis:32%;min-width:320px}}
+@media(max-width:900px){.nl-topbar{height:58px}.nl-context-copy strong{max-width:180px}.nl-left{width:42px}.nl-left-title,.nl-left-body,.nl-chapter-progress{display:none}.nl-right{width:min(410px,54vw)}.nl-main.resource-focus .nl-center{display:none}.nl-main.resource-focus .nl-right.focused{min-width:0;width:100%}}
+@media(prefers-reduced-motion:reduce){.nl-main,.nl-left,.nl-right{transition:none!important}.nl-status-dot,.nl-gen-pulse,.nl-tree-dot.in_progress{animation:none!important}}
+
 </style>

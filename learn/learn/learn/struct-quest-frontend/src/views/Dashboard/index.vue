@@ -83,8 +83,8 @@ const aiAdvice = ref('正在分析你的学习数据...')
 const aiMotivation = ref('种一棵树最好的时间是十年前，其次是现在')
 const todayTasks = ref([])
 const resources = ref([
-  { id: 1, type: 'animation', name: '栈操作动画', desc: '入栈、出栈过程可视化', nodeId: 'stack_anim', color: '#8b5cf6' },
-  { id: 2, type: 'mindmap', name: '排序算法导图', desc: '七大排序对比总览', nodeId: 'sort_map', color: '#6366f1' },
+  { id: 1, type: 'animation', name: '栈操作动画', desc: '入栈、出栈过程可视化', nodeId: 'stack_anim', color: '#d97982' },
+  { id: 2, type: 'mindmap', name: '排序算法导图', desc: '七大排序对比总览', nodeId: 'sort_map', color: '#c84c5a' },
   { id: 3, type: 'code', name: 'AVL树实现', desc: 'Python 旋转操作实战', nodeId: 'avl_code', color: '#10b981' },
   { id: 4, type: 'video', name: '图论入门精讲', desc: 'BFS/DFS 算法解析', nodeId: 'graph_video', color: '#f59e0b' },
 ])
@@ -110,16 +110,16 @@ const statsData = computed(() => [
     value: displayKnowledge.value,
     unit: '',
     icon: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
-    color: '#8b5cf6',
-    bg: 'rgba(139,92,246,0.08)',
+    color: '#d97982',
+    bg: 'rgba(217,121,130,0.08)',
   },
   {
     label: '学习时长',
     value: displayStudyHours.value,
     unit: 'h',
     icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
-    color: '#6366f1',
-    bg: 'rgba(99,102,241,0.08)',
+    color: '#c84c5a',
+    bg: 'rgba(200,76,90,0.08)',
   },
   {
     label: '技能掌握',
@@ -313,3 +313,4 @@ onMounted(async () => {
   }
 }
 </style>
+

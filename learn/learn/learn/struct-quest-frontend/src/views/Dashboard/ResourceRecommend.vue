@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="resource-panel">
     <div class="panel-header">
       <h3 class="panel-title">
@@ -49,8 +49,8 @@ defineProps({
   resources: {
     type: Array,
     default: () => [
-      { id: 1, type: 'animation', name: '栈操作动画', desc: '入栈、出栈过程可视化', nodeId: 'stack_anim', color: '#8b5cf6' },
-      { id: 2, type: 'mindmap', name: '排序算法导图', desc: '七大排序对比总览', nodeId: 'sort_map', color: '#6366f1' },
+      { id: 1, type: 'animation', name: '栈操作动画', desc: '入栈、出栈过程可视化', nodeId: 'stack_anim', color: '#d97982' },
+      { id: 2, type: 'mindmap', name: '排序算法导图', desc: '七大排序对比总览', nodeId: 'sort_map', color: '#c84c5a' },
       { id: 3, type: 'code', name: 'AVL树实现', desc: 'Python 旋转操作实战', nodeId: 'avl_code', color: '#10b981' },
       { id: 4, type: 'video', name: '图论入门精讲', desc: 'BFS/DFS 算法解析', nodeId: 'graph_video', color: '#f59e0b' },
     ]
@@ -125,7 +125,7 @@ const typeLabels = {
 .resource-card:hover {
   transform: translateY(-3px);
   box-shadow: var(--shadow-md);
-  border-color: rgba(99,102,241,0.12);
+  border-color: rgba(200,76,90,0.12);
   background: var(--bg-color);
 }
 
@@ -159,3 +159,4 @@ const typeLabels = {
   line-height: 1.4;
 }
 </style>
+

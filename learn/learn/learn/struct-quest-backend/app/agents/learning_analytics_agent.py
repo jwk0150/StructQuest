@@ -82,17 +82,30 @@ class LearningAnalyticsAgent(BaseAgent):
         learning_path = state.get("learning_path", [])
         event_payload = state.get("event_payload", {})
 
+        # ★ 新增：从数据库加载历史数据
+        historical = {}
+        try:
+            uid = int(user_id) if str(user_id).isdigit() else None
+            if uid:
+                historical = self._load_historical_data(uid)
+                logger.info("📊 历史数据加载完成: events=%d, hours=%.1f, exams=%d",
+                    historical.get("total_events", 0),
+                    historical.get("total_study_hours", 0),
+                    historical.get("exam_count", 0))
+        except Exception as e:
+            logger.warning("历史数据加载失败，使用默认值: %s", e)
+
         # ── 维度1：活跃度 ──
-        activity = self._compute_activity(state, learning_path, resources)
+        activity = self._compute_activity(state, learning_path, resources, historical)
 
         # ── 维度2：专注度 ──
-        focus = self._compute_focus(state, profile)
+        focus = self._compute_focus(state, profile, historical)
 
         # ── 维度3：资源偏好 ──
-        resource_prefs = self._compute_resource_preferences(state, resources)
+        resource_prefs = self._compute_resource_preferences(state, resources, historical)
 
         # ── 维度4：知识掌握度 ──
-        knowledge = self._compute_knowledge_mastery(state, assessment, learning_path)
+        knowledge = self._compute_knowledge_mastery(state, assessment, learning_path, historical)
 
         # ── 维度5：错误模式分析（AI）──
         error_analysis = self._analyze_errors(state, assessment, profile, subject)
@@ -104,7 +117,7 @@ class LearningAnalyticsAgent(BaseAgent):
         growth = self._compute_growth(state, assessment, knowledge, profile)
 
         # ★ 维度8：学习风险（Risk）— v3.1 新增 ──
-        risk = self._compute_risk(state, assessment, profile, learning_path)
+        risk = self._compute_risk(state, assessment, profile, learning_path, historical)
 
         # ── 组装分析结果 ──
         analytics: Dict[str, Any] = {
@@ -173,9 +186,11 @@ class LearningAnalyticsAgent(BaseAgent):
     # ═══════════════════════════════════════════
 
     def _compute_activity(
-        self, state: LearningState, learning_path: List[Dict], resources: List[Dict]
+        self, state: LearningState, learning_path: List[Dict], resources: List[Dict],
+        historical: Dict = None
     ) -> Dict[str, Any]:
-        """计算学习活跃度"""
+        """计算学习活跃度（融合 DB 历史数据）"""
+        hist = historical or {}
         user_messages = state.get("user_messages", [])
         total_messages = len(user_messages)
 
@@ -187,26 +202,30 @@ class LearningAnalyticsAgent(BaseAgent):
         # 从资源数量推断学习量
         resource_count = len(resources)
 
-        # 估算学习时长（分钟）
-        estimated_minutes = sum(
-            s.get("estimated_minutes", 15) for s in learning_path
-            if s.get("status") in ("completed", "in_progress")
-        )
-        total_study_hours = round(estimated_minutes / 60, 1)
+        # ★ 优先使用 DB 中的实际学习时长，否则估算
+        db_study_hours = hist.get("total_study_hours", 0)
+        if db_study_hours > 0:
+            total_study_hours = round(db_study_hours, 1)
+        else:
+            estimated_minutes = sum(
+                s.get("estimated_minutes", 15) for s in learning_path
+                if s.get("status") in ("completed", "in_progress")
+            )
+            total_study_hours = round(estimated_minutes / 60, 1)
 
         # 任务完成率
         task_completion_rate = round(completed_steps / max(total_steps, 1), 2)
 
-        # 活跃度综合评分
-        # 公式：消息量(30%) + 完成率(40%) + 资源使用(30%)
-        msg_score = min(100, total_messages * 8)
+        # ★ 结合 DB 事件数调整活跃度
+        db_events = hist.get("total_events", 0)
+        msg_score = min(100, max(total_messages * 8, db_events * 3))
         completion_score = task_completion_rate * 100
         resource_score = min(100, resource_count * 15)
 
         activity_score = round(msg_score * 0.3 + completion_score * 0.4 + resource_score * 0.3, 1)
 
-        # 登录频率（基于消息分布估算）
-        login_frequency = max(1, total_messages // 5)
+        # 登录频率（基于 DB 事件或消息分布估算）
+        login_frequency = max(1, db_events // 10) if db_events > 0 else max(1, total_messages // 5)
 
         return {
             "score": activity_score,
@@ -219,23 +238,25 @@ class LearningAnalyticsAgent(BaseAgent):
     #  维度2：专注度计算
     # ═══════════════════════════════════════════
 
-    def _compute_focus(self, state: LearningState, profile: Dict) -> Dict[str, Any]:
-        """计算专注指数"""
-        # 从事件数据和行为特征中推断
+    def _compute_focus(self, state: LearningState, profile: Dict, historical: Dict = None) -> Dict[str, Any]:
+        """计算专注指数（融合历史数据）"""
+        hist = historical or {}
         event_payload = state.get("event_payload", {})
-        behavior = state.get("behavior_features", {})  # 兼容旧版数据
+        behavior = state.get("behavior_features", {})
 
-        # 暂停次数和页面切换可从事件数据中获得
         pause_count = event_payload.get("pause_count",
                       behavior.get("pause_count", 0))
         page_switch_count = event_payload.get("page_switch_count",
                             behavior.get("page_switch_count", 0))
 
-        # 基础专注度（从画像继承，或重新计算）
-        base_focus = float(profile.get("focus_score",
-                         behavior.get("focus_score", 75)))
+        # ★ 优先从 DB 画像取历史专注度
+        db_focus = hist.get("focus_score", None)
+        if db_focus is not None:
+            base_focus = float(db_focus)
+        else:
+            base_focus = float(profile.get("focus_score",
+                             behavior.get("focus_score", 75)))
 
-        # 根据暂停和切换调整
         penalty = (pause_count * 3 + page_switch_count * 2) * 0.5
         focus_score = round(max(30, min(98, base_focus - penalty)), 1)
 
@@ -250,9 +271,10 @@ class LearningAnalyticsAgent(BaseAgent):
     # ═══════════════════════════════════════════
 
     def _compute_resource_preferences(
-        self, state: LearningState, resources: List[Dict]
+        self, state: LearningState, resources: List[Dict], historical: Dict = None
     ) -> Dict[str, float]:
-        """统计各类型资源的使用占比"""
+        """统计各类型资源的使用占比（融合历史偏好）"""
+        hist = historical or {}
         prefs: Dict[str, float] = {
             "视频": 0.0, "PPT": 0.0, "案例": 0.0, "文档": 0.0,
             "练习题": 0.0, "思维导图": 0.0,
@@ -264,7 +286,10 @@ class LearningAnalyticsAgent(BaseAgent):
         }
 
         if not resources:
-            # 从画像中继承
+            # ★ 优先从 DB 画像取历史偏好
+            db_prefs = hist.get("resource_preferences", None)
+            if db_prefs:
+                return db_prefs
             existing = state.get("student_profile", {}).get("resource_preferences", {})
             if existing:
                 return existing
@@ -282,6 +307,13 @@ class LearningAnalyticsAgent(BaseAgent):
         for label in prefs:
             prefs[label] = round(type_content_length.get(label, 0) / total * 100, 1)
 
+        # ★ 与历史偏好融合（指数移动平均）
+        db_prefs = hist.get("resource_preferences", None)
+        if db_prefs:
+            for label in prefs:
+                old_val = db_prefs.get(label, prefs[label])
+                prefs[label] = round(old_val * 0.7 + prefs[label] * 0.3, 1)
+
         return prefs
 
     # ═══════════════════════════════════════════
@@ -289,12 +321,20 @@ class LearningAnalyticsAgent(BaseAgent):
     # ═══════════════════════════════════════════
 
     def _compute_knowledge_mastery(
-        self, state: LearningState, assessment: Dict, learning_path: List[Dict]
+        self, state: LearningState, assessment: Dict, learning_path: List[Dict],
+        historical: Dict = None
     ) -> Dict[str, Any]:
-        """计算知识点掌握度追踪"""
+        """计算知识点掌握度追踪（融合历史数据）"""
+        hist = historical or {}
         mastery: Dict[str, float] = {}
 
-        # 从测评中的知识追踪获取
+        # ★ 优先从 DB 加载历史掌握度
+        db_mastery = hist.get("knowledge_mastery", {})
+        if db_mastery:
+            for topic, level in db_mastery.items():
+                mastery[topic] = float(level)
+
+        # 从测评中的知识追踪获取（覆盖历史）
         knowledge_tracking = assessment.get("knowledge_tracking", {})
         if knowledge_tracking:
             for topic, data in knowledge_tracking.items():
@@ -321,6 +361,9 @@ class LearningAnalyticsAgent(BaseAgent):
 
         # 趋势判断
         trend = "stable"
+        db_trend = hist.get("mastery_trend", "")
+        if db_trend:
+            trend = db_trend
         if assessment.get("overall_score"):
             prev_scores = []
             for msg in state.get("messages", []):
@@ -502,9 +545,10 @@ class LearningAnalyticsAgent(BaseAgent):
 
     def _compute_risk(
         self, state: LearningState, assessment: Dict,
-        profile: Dict, learning_path: List[Dict]
+        profile: Dict, learning_path: List[Dict], historical: Dict = None
     ) -> Dict[str, Any]:
         """计算学习风险画像"""
+        hist = historical or {}
         factors = []
         consecutive_missed = 0
         consecutive_low = 0
@@ -520,7 +564,8 @@ class LearningAnalyticsAgent(BaseAgent):
         if consecutive_missed >= 3:
             factors.append(f"连续{consecutive_missed}个任务被跳过")
 
-        # 检查连续低分
+        # 检查连续低分（结合 DB 考试平均分）
+        db_avg_score = hist.get("avg_exam_score", 0)
         knowledge_tracking = assessment.get("knowledge_tracking", {})
         for topic, data in knowledge_tracking.items():
             if isinstance(data, dict):
@@ -530,13 +575,20 @@ class LearningAnalyticsAgent(BaseAgent):
 
         if consecutive_low >= 3:
             factors.append(f"连续{consecutive_low}次低分")
+        elif db_avg_score > 0 and db_avg_score < 50:
+            factors.append(f"历史考试平均分偏低({db_avg_score:.0f})")
 
         # 检查长期未掌握的知识点
         mastery = knowledge_tracking if knowledge_tracking else profile.get("knowledge_mastery", {})
+        # ★ 也检查 DB 历史薄弱点
+        db_weaknesses = hist.get("weaknesses", [])
         for topic, data in mastery.items():
             level = float(data.get("mastery_level", data)) if isinstance(data, dict) else float(data)
             if level < 40:
                 stagnant.append(topic)
+        for w in db_weaknesses:
+            if w not in stagnant:
+                stagnant.append(w)
 
         if len(stagnant) >= 3:
             factors.append(f"{len(stagnant)}个知识点长期未掌握: {', '.join(stagnant[:3])}")
@@ -557,6 +609,94 @@ class LearningAnalyticsAgent(BaseAgent):
             "consecutive_low_scores": consecutive_low,
             "stagnant_topics": stagnant,
         }
+
+    # ═══════════════════════════════════════════
+    #  DB 历史数据加载
+    # ═══════════════════════════════════════════
+
+    @staticmethod
+    def _load_historical_data(user_id: int) -> Dict[str, Any]:
+        """从数据库加载用户的所有历史学习数据"""
+        import asyncio
+        from app.db.session import AsyncSessionLocal
+        from sqlalchemy import select, func
+        from app.models.learning_ecosystem import LearningEvent
+        from app.models.learning_progress import LearningProgress
+        from app.models.exam_result import ExamResult
+        from app.models.study_session import StudySession
+        from app.models.chat import ChatMessage
+        from app.models.student_profile import StudentProfile
+
+        async def _query():
+            async with AsyncSessionLocal() as db:
+                result = {}
+
+                # 1. 学习事件总数
+                event_count = (await db.execute(
+                    select(func.count(LearningEvent.id))
+                    .where(LearningEvent.user_id == user_id)
+                )).scalar() or 0
+                result["total_events"] = event_count
+
+                # 2. 总学习时长
+                total_seconds = (await db.execute(
+                    select(func.sum(StudySession.duration_seconds))
+                    .where(StudySession.user_id == user_id)
+                )).scalar() or 0
+                result["total_study_seconds"] = total_seconds
+                result["total_study_hours"] = round(total_seconds / 3600, 1)
+
+                # 3. 考试统计
+                exam_row = (await db.execute(
+                    select(
+                        func.count(ExamResult.id),
+                        func.avg(ExamResult.score),
+                    ).where(ExamResult.user_id == user_id)
+                )).one()
+                result["exam_count"] = exam_row[0] or 0
+                result["avg_exam_score"] = round(float(exam_row[1]), 1) if exam_row[1] else 0
+
+                # 4. 完成的知识节点数
+                completed = (await db.execute(
+                    select(func.count(LearningProgress.id))
+                    .where(
+                        LearningProgress.user_id == user_id,
+                        LearningProgress.status == "completed",
+                    )
+                )).scalar() or 0
+                result["completed_nodes"] = completed
+
+                # 5. AI 对话次数
+                chat_count = (await db.execute(
+                    select(func.count(ChatMessage.id))
+                    .where(ChatMessage.role == "ai")
+                )).scalar() or 0
+                result["chat_count"] = chat_count
+
+                # 6. 画像数据
+                profile_row = (await db.execute(
+                    select(StudentProfile).where(StudentProfile.user_id == user_id)
+                )).scalar_one_or_none()
+                if profile_row:
+                    result["focus_score"] = profile_row.focus_score
+                    result["activity_score"] = profile_row.activity_score
+                    result["resource_preferences"] = profile_row.resource_preferences or {}
+                    result["knowledge_mastery"] = profile_row.knowledge_mastery or {}
+                    result["mastery_trend"] = profile_row.mastery_trend or "stable"
+                    result["weaknesses"] = profile_row.weaknesses or []
+                    result["strengths"] = profile_row.strengths or []
+                    result["risk_level"] = profile_row.risk_level or "low"
+
+                return result
+
+        try:
+            loop = asyncio.get_running_loop()
+            # 在已有事件循环中，用线程池执行
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                return pool.submit(asyncio.run, _query()).result(timeout=15)
+        except RuntimeError:
+            return asyncio.run(_query())
 
     # ═══════════════════════════════════════════
     #  降级策略
